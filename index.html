@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>福岡県水泳連盟 競技役員管理システム</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+// ===== INITIAL DATA =====
+const initialOfficials = [
+  { id: "400356", name: "平田 健", kana: "ひらた たけし", qualification: "B級審判", expiry: "2027-03-31", birthdate: "1981-03-27", password: "", email: "", phone: "" },
+  { id: "010001", name: "山田 太郎", kana: "やまだ たろう", qualification: "A級審判", expiry: "2027-03-31", birthdate: "1975-06-15", password: "pass001", email: "yamada@example.com", phone: "090-1234-5678" },
+  { id: "020001", name: "鈴木 花子", kana: "すずき はなこ", qualification: "B級審判", expiry: "2026-09-30", birthdate: "1988-11-22", password: "pass002", email: "suzuki@example.com", phone: "080-2345-6789" },
+  { id: "030001", name: "田中 誠", kana: "たなか まこと", qualification: "C級審判", expiry: "2026-12-31", birthdate: "1995-03-08", password: "pass003", email: "", phone: "" },
+  { id: "040001", name: "佐藤 美咲", kana: "さとう みさき", qualification: "なし", expiry: "", birthdate: "2000-07-19", password: "pass004", email: "", phone: "" },
+];
+
+const initialMeets = [
+  { id: "M001", name: "春季ジュニア", dates: ["2026-04-12"], venue: "西市民", lane: "25m", deadline: "2026-03-29", capacity: 120, organizer: "福岡水泳協会" },
+  { id: "M002", name: "桜泳記録会", dates: ["2026-04-12"], venue: "県立", lane: "25m", deadline: "2026-03-29", capacity: 100, organizer: "桜泳G" },
+  { id: "M003", name: "みん水", dates: ["2026-04-19"], venue: "県立", lane: "25m", deadline: "2026-04-05", capacity: 100, organizer: "みん水協会" },
+  { id: "M004", name: "福岡県SC大会", dates: ["2026-04-29"], venue: "西市民", lane: "25m", deadline: "2026-04-15", capacity: 150, organizer: "SC協会" },
+  { id: "M005", name: "みん水長水路", dates: ["2026-05-06"], venue: "西市民", lane: "50m", deadline: "2026-04-22", capacity: 100, organizer: "みん水協会" },
+  { id: "M006", name: "九州学生春季公認記録会", dates: ["2026-05-09"], venue: "西市民", lane: "50m", deadline: "2026-04-25", capacity: 200, organizer: "九州学連" },
+  { id: "M007", name: "日本マスターズ短水路(福岡会場)", dates: ["2026-05-10"], venue: "西市民", lane: "25m", deadline: "2026-04-26", capacity: 200, organizer: "日本SC九州支部" },
+  { id: "M008", name: "高校春季選抜", dates: ["2026-05-16", "2026-05-17"], venue: "西市民", lane: "50m", deadline: "2026-05-02", capacity: 200, organizer: "高体連" },
+  { id: "M009", name: "西日本年齢別", dates: ["2026-05-23", "2026-05-24"], venue: "熊本", lane: "50m", deadline: "2026-05-09", capacity: 300, organizer: "九州水連" },
+  { id: "M010", name: "Chikugo Open", dates: ["2026-05-31"], venue: "西市民", lane: "25m", deadline: "2026-05-17", capacity: 150, organizer: "筑後水泳協会" },
+  { id: "M011", name: "夏季合同", dates: ["2026-06-07"], venue: "西市民", lane: "25m", deadline: "2026-05-24", capacity: 100, organizer: "みん水協会" },
+  { id: "M012", name: "北九州OP長水路", dates: ["2026-06-07"], venue: "桃園", lane: "50m", deadline: "2026-05-24", capacity: 150, organizer: "北九州水泳協会" },
+  { id: "M013", name: "福岡県高校", dates: ["2026-06-13", "2026-06-14"], venue: "西市民", lane: "50m", deadline: "2026-05-30", capacity: 200, organizer: "高体連" },
+  { id: "M014", name: "ジュニア練習会", dates: ["2026-06-20"], venue: "西市民", lane: "-", deadline: "2026-06-06", capacity: 100, organizer: "福岡水泳協会" },
+  { id: "M015", name: "水球の大会", dates: ["2026-06-20", "2026-06-21"], venue: "県立", lane: "-", deadline: "2026-06-06", capacity: 100, organizer: "水球" },
+  { id: "M016", name: "ASの大会", dates: ["2026-06-21"], venue: "西市民", lane: "-", deadline: "2026-06-07", capacity: 100, organizer: "AS" },
+  { id: "M017", name: "小学生学年別", dates: ["2026-06-28"], venue: "西市民", lane: "50m", deadline: "2026-06-14", capacity: 200, organizer: "福岡県水連" },
+  { id: "M018", name: "福岡県選手権・夏季JO福岡県予選", dates: ["2026-07-04", "2026-07-05"], venue: "西市民", lane: "50m", deadline: "2026-06-20", capacity: 300, organizer: "福岡県水連" },
+  { id: "M019", name: "福岡市中学", dates: ["2026-07-11", "2026-07-12"], venue: "西市民", lane: "50m", deadline: "2026-06-27", capacity: 200, organizer: "中体連" },
+  { id: "M020", name: "九州高校", dates: ["2026-07-18", "2026-07-20"], venue: "熊本", lane: "50m", deadline: "2026-07-04", capacity: 300, organizer: "高体連" },
+  { id: "M021", name: "みん水", dates: ["2026-07-26"], venue: "県立", lane: "-", deadline: "2026-07-12", capacity: 100, organizer: "みん水協会" },
+  { id: "M022", name: "福岡県中学", dates: ["2026-07-27", "2026-07-28"], venue: "西市民", lane: "50m", deadline: "2026-07-13", capacity: 200, organizer: "中体連" },
+  { id: "M023", name: "全九州SC夏季大会", dates: ["2026-07-30", "2026-07-31"], venue: "大分", lane: "50m", deadline: "2026-07-16", capacity: 200, organizer: "日本SC九州支部" },
+  { id: "M024", name: "福岡市民スポーツ・ディスタンス", dates: ["2026-08-02"], venue: "西市民", lane: "25m", deadline: "2026-07-19", capacity: 150, organizer: "福岡市水泳協会" },
+  { id: "M025", name: "福岡市中学新人", dates: ["2026-08-21"], venue: "西市民", lane: "50m", deadline: "2026-08-07", capacity: 200, organizer: "中体連" },
+  { id: "M026", name: "福岡県民大会", dates: ["2026-08-23"], venue: "西市民", lane: "50m", deadline: "2026-08-09", capacity: 200, organizer: "福岡県" },
+  { id: "M027", name: "秋季合同", dates: ["2026-08-23"], venue: "県立", lane: "25m", deadline: "2026-08-09", capacity: 100, organizer: "みん水協会" },
+  { id: "M028", name: "福岡県高校新人", dates: ["2026-08-29", "2026-08-30"], venue: "西市民", lane: "50m", deadline: "2026-08-15", capacity: 200, organizer: "高体連" },
+  { id: "M029", name: "筑豊水泳大会", dates: ["2026-08-30"], venue: "桃園", lane: "25m", deadline: "2026-08-16", capacity: 150, organizer: "筑豊水泳協会" },
+  { id: "M030", name: "福岡県中学新人", dates: ["2026-09-05"], venue: "県立", lane: "50m", deadline: "2026-08-22", capacity: 200, organizer: "中体連" },
+  { id: "M031", name: "全九州マスターズ", dates: ["2026-09-13"], venue: "西市民", lane: "25m", deadline: "2026-08-30", capacity: 150, organizer: "日本SC九州支部" },
+  { id: "M032", name: "九州ジュニア", dates: ["2026-09-19", "2026-09-20"], venue: "熊本", lane: "50m", deadline: "2026-09-05", capacity: 300, organizer: "九州水連" },
+  { id: "M033", name: "末弘杯", dates: ["2026-09-26", "2026-09-27"], venue: "佐賀", lane: "50m", deadline: "2026-09-12", capacity: 200, organizer: "高体連" },
+  { id: "M034", name: "筑後ジュニア", dates: ["2026-10-18"], venue: "県立", lane: "25m", deadline: "2026-10-04", capacity: 150, organizer: "筑後水泳協会" },
+  { id: "M035", name: "北九州秋季", dates: ["2026-10-18"], venue: "桃園", lane: "25m", deadline: "2026-10-04", capacity: 150, organizer: "北九州水泳協会" },
+  { id: "M036", name: "基礎水泳①", dates: ["2026-10-25"], venue: "県立", lane: "25m", deadline: "2026-10-11", capacity: 100, organizer: "福岡県水連" },
+  { id: "M037", name: "福岡県SC大会", dates: ["2026-11-01"], venue: "西市民", lane: "25m", deadline: "2026-10-18", capacity: 150, organizer: "SC協会" },
+  { id: "M038", name: "水球の大会", dates: ["2026-11-07", "2026-11-08"], venue: "西市民", lane: "25m", deadline: "2026-10-24", capacity: 100, organizer: "水球" },
+  { id: "M039", name: "みん水OP", dates: ["2026-11-14", "2026-11-15"], venue: "西市民", lane: "25m", deadline: "2026-10-31", capacity: 150, organizer: "みん水協会" },
+  { id: "M040", name: "JSCA全国知的障がい", dates: ["2026-11-22"], venue: "西市民", lane: "25m", deadline: "2026-11-08", capacity: 150, organizer: "福岡県SC協会" },
+  { id: "M041", name: "基礎水泳②", dates: ["2026-11-22"], venue: "県立", lane: "25m", deadline: "2026-11-08", capacity: 100, organizer: "福岡県水連" },
+  { id: "M042", name: "ベスト認定", dates: ["2026-11-29"], venue: "西市民", lane: "25m", deadline: "2026-11-15", capacity: 100, organizer: "ベストG" },
+  { id: "M043", name: "桜泳選手権", dates: ["2026-11-29"], venue: "佐賀", lane: "25m", deadline: "2026-11-15", capacity: 100, organizer: "桜泳G" },
+  { id: "M044", name: "冬季ジュニア", dates: ["2026-12-06"], venue: "西市民", lane: "25m", deadline: "2026-11-22", capacity: 120, organizer: "福岡水泳協会" },
+  { id: "M045", name: "北九州記録会", dates: ["2026-12-06"], venue: "桃園", lane: "25m", deadline: "2026-11-22", capacity: 150, organizer: "北九州水泳協会" },
+  { id: "M046", name: "学生冬季短水路", dates: ["2026-12-13"], venue: "西市民", lane: "25m", deadline: "2026-11-29", capacity: 200, organizer: "九州学連" },
+  { id: "M047", name: "基礎水泳③", dates: ["2026-12-13"], venue: "県立", lane: "25m", deadline: "2026-11-29", capacity: 100, organizer: "福岡県水連" },
+  { id: "M048", name: "みん水", dates: ["2026-12-20"], venue: "西市民", lane: "25m", deadline: "2026-12-06", capacity: 100, organizer: "みん水協会" },
+  { id: "M049", name: "クリスマスカップ", dates: ["2026-12-20"], venue: "桃園", lane: "25m", deadline: "2026-12-06", capacity: 150, organizer: "筑豊水泳協会" },
+  { id: "M050", name: "新年フェスティバル", dates: ["2027-01-10"], venue: "西市民", lane: "25m", deadline: "2026-12-27", capacity: 100, organizer: "福岡県SC協会" },
+  { id: "M051", name: "春季JO福岡県予選", dates: ["2027-01-23", "2027-01-24"], venue: "西市民", lane: "25m", deadline: "2027-01-09", capacity: 250, organizer: "福岡県水連" },
+  { id: "M052", name: "九州カップ", dates: ["2027-02-06", "2027-02-07"], venue: "西市民", lane: "25m", deadline: "2027-01-23", capacity: 200, organizer: "九州水連" },
+  { id: "M053", name: "ベストチャレンジ", dates: ["2027-02-14"], venue: "西市民", lane: "25m", deadline: "2027-01-31", capacity: 100, organizer: "ベストG" },
+  { id: "M054", name: "みん水", dates: ["2027-02-28"], venue: "西市民", lane: "25m", deadline: "2027-02-14", capacity: 100, organizer: "みん水協会" },
+  { id: "M055", name: "ジュニア練習会", dates: ["2027-03-06"], venue: "西市民", lane: "-", deadline: "2027-02-20", capacity: 100, organizer: "福岡水泳協会" },
+  { id: "M056", name: "北九州記録会", dates: ["2027-03-07"], venue: "桃園", lane: "50m", deadline: "2027-02-21", capacity: 150, organizer: "北九州水泳協会" },
+  { id: "M057", name: "学生短水路", dates: ["2027-03-07"], venue: "西市民", lane: "25m", deadline: "2027-02-21", capacity: 200, organizer: "九州学連" },
+  { id: "M058", name: "春季合同", dates: ["2027-03-14"], venue: "西市民", lane: "25m", deadline: "2027-02-28", capacity: 100, organizer: "みん水協会" },
+  { id: "M059", name: "筑後ジュニア", dates: ["2027-03-21"], venue: "西市民", lane: "25m", deadline: "2027-03-07", capacity: 150, organizer: "筑後水泳協会" },
+  { id: "M060", name: "九州SC春季大会", dates: ["2027-03-30", "2027-03-31"], venue: "鹿児島", lane: "25m", deadline: "2027-03-16", capacity: 200, organizer: "日本SC九州支部" },
+];
+
+const initialTrainings = [
+  { id: "T001", name: "前期審判研修会", dates: ["2026-05-10"], venue: "県立スポーツセンター", deadline: "2026-04-25", capacity: 80, category: "任意", targetQual: ["A級審判","B級審判","C級審判"], organizer: "福岡県水泳連盟審判委員会", notes: "" },
+  { id: "T002", name: "義務研修（九州ブロック）", dates: ["2027-02-14"], venue: "県立", deadline: "2027-01-31", capacity: 60, category: "義務", targetQual: ["A級審判","B級審判"], organizer: "九州ブロック水泳連盟", notes: "A・B級審判は必ず出席のこと" },
+];
+
+const adminCredentials = { username: "admin", password: "admin2026" };
+
+// ===== HELPERS =====
+function calcAge(b) {
+  if (!b) return "-";
+  const t = new Date(), bd = new Date(b);
+  let a = t.getFullYear() - bd.getFullYear();
+  const m = t.getMonth() - bd.getMonth();
+  if (m < 0 || (m === 0 && t.getDate() < bd.getDate())) a--;
+  return a;
+}
+function formatDate(d) {
+  if (!d) return "-";
+  const dt = new Date(d);
+  return `${dt.getFullYear()}年${dt.getMonth()+1}月${dt.getDate()}日`;
+}
+function QualBadge({ q }) {
+  const s = { "A級審判":"badge-a","B級審判":"badge-b","C級審判":"badge-c","なし":"badge-none" };
+  return <span className={`qual-badge ${s[q]||"badge-none"}`}>{q}</span>;
+}
+function AttBadge({ status }) {
+  if (status==="参加")    return <span className="att-badge att-yes">● 参加</span>;
+  if (status==="不参加")  return <span className="att-badge att-no">✕ 不参加</span>;
+  if (status==="一部回答") return <span className="att-badge att-partial">◑ 一部回答</span>;
+  return <span className="att-badge att-pending">－ 未回答</span>;
+}
+
+// ===== SHARED ATTENDANCE CARD =====
+function AttCard({ item, userId, attendance, setAttendance, todayStr }) {
+  const getA = (date) => attendance[`${userId}_${item.id}_${date}`] || "未回答";
+  const setA = (date, val) => setAttendance(p => ({ ...p, [`${userId}_${item.id}_${date}`]: val }));
+  const isPast = item.deadline < todayStr;
+  const ss = item.dates.map(d => getA(d));
+  const summary = ss.every(s=>s==="参加") ? "参加" : ss.every(s=>s==="不参加") ? "不参加" : ss.every(s=>s==="未回答") ? "未回答" : "一部回答";
+  const cls = { "参加":"att-card-yes","不参加":"att-card-no","一部回答":"att-card-partial" }[summary] || "";
+  return (
+    <div className={`meet-att-card ${cls}`}>
+      <div className="meet-att-header">
+        <div className="meet-name">{item.name}</div>
+        <AttBadge status={summary}/>
+      </div>
+      <div className="meet-meta">
+        <span>📍 {item.venue}{item.lane && item.lane!=="-" ? `　🏊 ${item.lane}` : ""}</span>
+        {item.category && <span><span className={`train-cat-badge ${item.category==="義務"?"cat-required":"cat-optional"}`}>{item.category}</span></span>}
+        {item.organizer && <span>🏢 {item.organizer}</span>}
+        {item.targetQual && item.targetQual.length>0 && <span>🎯 対象：{item.targetQual.join("・")}</span>}
+        {item.notes && <span className="train-notes">📝 {item.notes}</span>}
+      </div>
+      <div className="meet-att-deadline">
+        受付締切：<span className={isPast?"deadline-past":""}>{formatDate(item.deadline)}{isPast?"（締切済）":""}</span>
+      </div>
+      <div className="date-att-list">
+        {item.dates.map(date => {
+          const att = getA(date);
+          return (
+            <div key={date} className="date-att-row">
+              <span className="date-att-label">📅 {formatDate(date)}</span>
+              {!isPast ? (
+                <div className="att-btn-row">
+                  <button className={`att-btn yes ${att==="参加"?"selected":""}`} onClick={()=>setA(date,"参加")}>● 参加</button>
+                  <button className={`att-btn no ${att==="不参加"?"selected":""}`} onClick={()=>setA(date,"不参加")}>✕ 不参加</button>
+                  {att!=="未回答" && <button className="att-btn reset" onClick={()=>setA(date,"未回答")}>取消</button>}
+                </div>
+              ) : <AttBadge status={att}/>}
+            </div>
+          );
+        })}
+      </div>
+      {isPast && <div className="att-closed">回答締切済み</div>}
+    </div>
+  );
+}
+
+// ===== LOGIN =====
+function LoginScreen({ onLogin, officials }) {
+  const [mode, setMode] = useState("official");
+  const [id, setId] = useState(""); const [pw, setPw] = useState("");
+  const [err, setErr] = useState(""); const [ripple, setRipple] = useState(false);
+  const go = () => {
+    setRipple(true); setTimeout(()=>setRipple(false),600);
+    if (mode==="admin") {
+      if (id===adminCredentials.username && pw===adminCredentials.password) onLogin("admin",null);
+      else setErr("ユーザー名またはパスワードが正しくありません");
+    } else {
+      const f = officials.find(o=>o.id===id && o.password===pw);
+      if (f) onLogin("official",id); else setErr("登録番号またはパスワードが正しくありません");
+    }
+  };
+  return (
+    <div className="login-wrap">
+      <div className="login-bg">{[...Array(12)].map((_,i)=><div key={i} className={`wave wave-${i%4}`} style={{animationDelay:`${i*0.3}s`,top:`${10+i*7}%`}}/>)}</div>
+      <div className="login-card">
+        <div className="login-logo">
+          <svg viewBox="0 0 60 60" width="52" height="52">
+            <ellipse cx="30" cy="30" rx="28" ry="28" fill="none" stroke="#38bdf8" strokeWidth="2.5"/>
+            <path d="M10 38 Q20 28 30 38 Q40 48 50 38" fill="none" stroke="#38bdf8" strokeWidth="2.5" strokeLinecap="round"/>
+            <path d="M10 28 Q20 18 30 28 Q40 38 50 28" fill="none" stroke="#7dd3fc" strokeWidth="2" strokeLinecap="round"/>
+            <circle cx="30" cy="22" r="5" fill="#38bdf8" opacity="0.85"/>
+          </svg>
+        </div>
+        <h1 className="login-title">競技役員管理システム</h1>
+        <p className="login-subtitle">福岡県水泳連盟</p>
+        <div className="tab-row">
+          <button className={`tab-btn ${mode==="official"?"active":""}`} onClick={()=>{setMode("official");setErr("");}}>競技役員</button>
+          <button className={`tab-btn ${mode==="admin"?"active":""}`} onClick={()=>{setMode("admin");setErr("");}}>管理者</button>
+        </div>
+        <div className="field-group">
+          <label>{mode==="admin"?"ユーザー名":"登録番号"}</label>
+          <input value={id} onChange={e=>{setId(e.target.value);setErr("");}} placeholder={mode==="admin"?"admin":"例：400356"} onKeyDown={e=>e.key==="Enter"&&go()}/>
+        </div>
+        <div className="field-group">
+          <label>パスワード</label>
+          <input type="password" value={pw} onChange={e=>{setPw(e.target.value);setErr("");}} placeholder="••••••••" onKeyDown={e=>e.key==="Enter"&&go()}/>
+        </div>
+        {err && <div className="login-error">{err}</div>}
+        <button className={`login-btn ${ripple?"ripple":""}`} onClick={go}>ログイン</button>
+        <p className="login-hint">{mode==="official"?"※ 登録番号は事務局から発行されます":"※ 管理者専用ページです"}</p>
+      </div>
+    </div>
+  );
+}
+
+// ===== OFFICIAL VIEW =====
+function OfficialView({ userId, officials, setOfficials, meets, trainings, attendance, setAttendance, onLogout }) {
+  const [tab, setTab] = useState("mypage");
+  const [editing, setEditing] = useState(false);
+  const [ef, setEf] = useState({ name:"", kana:"", birthdate:"", email:"", phone:"", pw:"", npw:"", npw2:"" });
+  const me = officials.find(o=>o.id===userId);
+  const todayStr = new Date().toISOString().slice(0,10);
+
+  const startEdit = () => { setEf({ name:me.name||"", kana:me.kana||"", birthdate:me.birthdate||"", email:me.email||"", phone:me.phone||"", pw:"", npw:"", npw2:"" }); setEditing(true); };
+  const saveEdit = () => {
+    if (!ef.name.trim()) { alert("氏名を入力してください"); return; }
+    if (ef.npw) {
+      if (!ef.pw) { alert("現在のパスワードを入力してください"); return; }
+      if (ef.pw !== me.password) { alert("現在のパスワードが正しくありません"); return; }
+      if (ef.npw !== ef.npw2) { alert("新しいパスワードが一致しません"); return; }
+    }
+    setOfficials(p=>p.map(o=>o.id!==userId?o:{...o,name:ef.name,kana:ef.kana,birthdate:ef.birthdate,email:ef.email,phone:ef.phone,...(ef.npw?{password:ef.npw}:{})}));
+    setEditing(false);
+  };
+
+  const upM = meets.filter(m=>m.dates[0]>=todayStr).sort((a,b)=>a.dates[0].localeCompare(b.dates[0]));
+  const upT = trainings.filter(t=>t.dates[0]>=todayStr).sort((a,b)=>a.dates[0].localeCompare(b.dates[0]));
+  const getSummary = (item) => {
+    const ss = item.dates.map(d=>attendance[`${userId}_${item.id}_${d}`]||"未回答");
+    if(ss.every(s=>s==="参加"))return"参加"; if(ss.every(s=>s==="不参加"))return"不参加"; if(ss.every(s=>s==="未回答"))return"未回答"; return"一部回答";
+  };
+  const pmeets = upM.filter(m=>m.deadline>=todayStr && m.dates.some(d=>!attendance[`${userId}_${m.id}_${d}`]));
+  const ptrains = upT.filter(t=>t.deadline>=todayStr && t.dates.some(d=>!attendance[`${userId}_${t.id}_${d}`]));
+
+  return (
+    <div className="main-wrap">
+      <aside className="sidebar">
+        <div className="sidebar-logo">
+          <svg viewBox="0 0 40 40" width="32" height="32">
+            <ellipse cx="20" cy="20" rx="18" ry="18" fill="none" stroke="#38bdf8" strokeWidth="2"/>
+            <path d="M6 26 Q13 18 20 26 Q27 34 34 26" fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round"/>
+            <path d="M6 18 Q13 10 20 18 Q27 26 34 18" fill="none" stroke="#7dd3fc" strokeWidth="1.5" strokeLinecap="round"/>
+            <circle cx="20" cy="13" r="3.5" fill="#38bdf8" opacity="0.9"/>
+          </svg>
+          <span>役員ポータル</span>
+        </div>
+        <nav className="sidebar-nav">
+          <div className={`nav-item ${tab==="mypage"?"active":""}`} onClick={()=>{setTab("mypage");setEditing(false);}}>マイページ</div>
+          <div className={`nav-item ${tab==="meets"?"active":""}`} onClick={()=>setTab("meets")}>
+            大会・出欠 {pmeets.length>0&&<span className="nav-badge">{pmeets.length}</span>}
+          </div>
+          <div className={`nav-item ${tab==="trainings"?"active":""}`} onClick={()=>setTab("trainings")}>
+            研修会・出欠 {ptrains.length>0&&<span className="nav-badge">{ptrains.length}</span>}
+          </div>
+        </nav>
+        <button className="logout-btn" onClick={onLogout}>ログアウト</button>
+      </aside>
+      <main className="content">
+
+        {tab==="mypage" && me && (
+          <>
+            <div className="page-header">
+              <h2>マイページ</h2>
+              {!editing && <button className="btn-primary" onClick={startEdit}>✏️ 編集</button>}
+            </div>
+            {!editing ? (
+              <div className="official-profile-card">
+                <div className="profile-avatar">{me.name.charAt(0)}</div>
+                <div className="profile-info">
+                  <h3>{me.name}</h3>
+                  <p className="profile-kana">{me.kana}</p>
+                  <div className="profile-section-label">基本情報（自分で編集可）</div>
+                  <div className="profile-row"><span className="profile-label">登録番号</span><span className="profile-val mono">{me.id}</span></div>
+                  <div className="profile-row"><span className="profile-label">資格</span><QualBadge q={me.qualification}/></div>
+                  <div className="profile-row"><span className="profile-label">有効期限</span><span className="profile-val">{formatDate(me.expiry)}</span></div>
+                  <div className="profile-row"><span className="profile-label">生年月日</span><span className="profile-val">{formatDate(me.birthdate)}</span></div>
+                  <div className="profile-row"><span className="profile-label">年齢</span><span className="profile-val">{calcAge(me.birthdate)}歳</span></div>
+                  <div className="profile-divider"/>
+                  <div className="profile-section-label">連絡先情報（自分で編集可）</div>
+                  <div className="profile-row"><span className="profile-label">メール</span><span className="profile-val">{me.email||<span className="unset">未登録</span>}</span></div>
+                  <div className="profile-row"><span className="profile-label">携帯電話</span><span className="profile-val">{me.phone||<span className="unset">未登録</span>}</span></div>
+                  <div className="profile-divider"/>
+                  <div className="profile-section-label">変更不可（管理者のみ）</div>
+                  <div className="profile-row"><span className="profile-label">資格・期限</span><span className="profile-val" style={{fontSize:"0.8rem",color:"#64748b"}}>管理者にお問い合わせください</span></div>
+                </div>
+              </div>
+            ) : (
+              <div className="edit-card">
+                <div className="edit-card-title">プロフィール編集</div>
+                <div className="edit-note">※ 資格・有効期限・登録番号は管理者にお問い合わせください</div>
+                <div className="edit-section-label">基本情報</div>
+                <div className="form-grid">
+                  <div className="field-group"><label>氏名</label><input value={ef.name} onChange={e=>setEf(p=>({...p,name:e.target.value}))} placeholder="例：山田 太郎"/></div>
+                  <div className="field-group"><label>読み仮名</label><input value={ef.kana} onChange={e=>setEf(p=>({...p,kana:e.target.value}))} placeholder="例：やまだ たろう"/></div>
+                  <div className="field-group"><label>生年月日</label><input type="date" value={ef.birthdate} onChange={e=>setEf(p=>({...p,birthdate:e.target.value}))}/></div>
+                </div>
+                <div className="edit-section-label" style={{marginTop:"18px"}}>連絡先情報</div>
+                <div className="form-grid">
+                  <div className="field-group field-full"><label>メールアドレス</label><input type="email" value={ef.email} onChange={e=>setEf(p=>({...p,email:e.target.value}))} placeholder="例：yamada@example.com"/></div>
+                  <div className="field-group field-full"><label>携帯電話</label><input type="tel" value={ef.phone} onChange={e=>setEf(p=>({...p,phone:e.target.value}))} placeholder="例：090-1234-5678"/></div>
+                </div>
+                <div className="edit-section-label" style={{marginTop:"18px"}}>パスワード変更（変更しない場合は空欄）</div>
+                <div className="form-grid">
+                  <div className="field-group field-full"><label>現在のパスワード</label><input type="password" value={ef.pw} onChange={e=>setEf(p=>({...p,pw:e.target.value}))} placeholder="現在のパスワード" autoComplete="current-password"/></div>
+                  <div className="field-group"><label>新しいパスワード</label><input type="password" value={ef.npw} onChange={e=>setEf(p=>({...p,npw:e.target.value}))} placeholder="新しいパスワード" autoComplete="new-password"/></div>
+                  <div className="field-group"><label>確認（再入力）</label><input type="password" value={ef.npw2} onChange={e=>setEf(p=>({...p,npw2:e.target.value}))} placeholder="もう一度入力" autoComplete="new-password"/></div>
+                </div>
+                <div className="modal-actions" style={{marginTop:"20px"}}>
+                  <button className="btn-secondary" onClick={()=>setEditing(false)}>キャンセル</button>
+                  <button className="btn-primary" onClick={saveEdit}>保存する</button>
+                </div>
+              </div>
+            )}
+            {!editing && (pmeets.length+ptrains.length)>0 && (
+              <>
+                <div className="section-title" style={{marginTop:"28px"}}>未回答の出欠（{pmeets.length+ptrains.length}件）</div>
+                <div className="meet-att-grid">
+                  {pmeets.map(m=><AttCard key={m.id} item={m} userId={userId} attendance={attendance} setAttendance={setAttendance} todayStr={todayStr}/>)}
+                  {ptrains.map(t=><AttCard key={t.id} item={t} userId={userId} attendance={attendance} setAttendance={setAttendance} todayStr={todayStr}/>)}
+                </div>
+              </>
+            )}
+          </>
+        )}
+
+        {tab==="meets" && (
+          <>
+            <div className="page-header"><h2>大会一覧・出欠入力</h2><span className="header-sub">{upM.length}件</span></div>
+            <div className="att-summary-row">
+              {[["参加","att-sum-yes"],["不参加","att-sum-no"],["一部回答","att-sum-partial"],["未回答","att-sum-pending"]].map(([s,c])=>(
+                <span key={s} className={`att-sum ${c}`}>{s} {upM.filter(m=>getSummary(m)===s).length}件</span>
+              ))}
+            </div>
+            <div className="meet-att-grid">
+              {upM.map(m=><AttCard key={m.id} item={m} userId={userId} attendance={attendance} setAttendance={setAttendance} todayStr={todayStr}/>)}
+              {upM.length===0&&<p style={{color:"#64748b",fontSize:"0.88rem"}}>開催予定の大会はありません</p>}
+            </div>
+          </>
+        )}
+
+        {tab==="trainings" && (
+          <>
+            <div className="page-header"><h2>研修会一覧・出欠入力</h2><span className="header-sub">{upT.length}件</span></div>
+            <div className="att-summary-row">
+              {[["参加","att-sum-yes"],["不参加","att-sum-no"],["未回答","att-sum-pending"]].map(([s,c])=>(
+                <span key={s} className={`att-sum ${c}`}>{s} {upT.filter(t=>getSummary(t)===s).length}件</span>
+              ))}
+            </div>
+            <div className="meet-att-grid">
+              {upT.map(t=><AttCard key={t.id} item={t} userId={userId} attendance={attendance} setAttendance={setAttendance} todayStr={todayStr}/>)}
+              {upT.length===0&&<p style={{color:"#64748b",fontSize:"0.88rem"}}>予定されている研修会はありません</p>}
+            </div>
+          </>
+        )}
+      </main>
+    </div>
+  );
+}
+
+// ===== ADMIN VIEW =====
+function AdminView({ officials, setOfficials, meets, setMeets, trainings, setTrainings, attendance, onLogout }) {
+  const [tab, setTab] = useState("officials");
+  const [offModal, setOffModal] = useState(null);
+  const [meetModal, setMeetModal] = useState(null);
+  const [trainModal, setTrainModal] = useState(null);
+  const [confirmDlg, setConfirmDlg] = useState(null);
+  const [csvModal, setCsvModal] = useState(null); // { title, content }
+  const [attType, setAttType] = useState("meet");
+  const [selectedId, setSelectedId] = useState(meets[0]?.id||"");
+  const [search, setSearch] = useState("");
+  const [offSort, setOffSort] = useState({ key:"id", dir:1 });
+  const [meetSort, setMeetSort] = useState({ key:"date", dir:1 });
+  const [trainSort, setTrainSort] = useState({ key:"date", dir:1 });
+  const todayStr = new Date().toISOString().slice(0,10);
+
+  const confirm = (message, onOk) => setConfirmDlg({ message, onOk });
+
+  const emptyOff = { id:"",name:"",kana:"",qualification:"なし",expiry:"",birthdate:"",password:"",email:"",phone:"" };
+  const emptyEv  = { id:"",name:"",dates:[""],venue:"",lane:"25m",deadline:"",capacity:"",organizer:"" };
+  const emptyTrain = { id:"",name:"",dates:[""],venue:"",deadline:"",capacity:"",category:"任意",targetQual:[],organizer:"",notes:"" };
+  const [offF, setOffF] = useState(emptyOff);
+  const [meetF, setMeetF] = useState(emptyEv);
+  const [trainF, setTrainF] = useState(emptyTrain);
+
+  const saveOff = () => {
+    if (!/^\d{6}$/.test(offF.id)) { setConfirmDlg({ message:"登録番号は6桁の数字で入力してください", onOk:null }); return; }
+    if (offModal==="new" && officials.find(o=>o.id===offF.id)) { setConfirmDlg({ message:"この登録番号はすでに使用されています", onOk:null }); return; }
+    if (offModal==="new") {
+      setOfficials(p=>[...p, offF]);
+    } else {
+      setOfficials(p=>p.map(o=>{
+        if (o.id!==offF.id) return o;
+        return { ...o, ...offF, password: offF.password ? offF.password : o.password };
+      }));
+    }
+    setOffModal(null);
+  };
+  const saveMeet = () => {
+    const m={...meetF,dates:meetF.dates.filter(d=>d),capacity:Number(meetF.capacity)};
+    if(meetModal==="new")setMeets(p=>[...p,m]);else setMeets(p=>p.map(x=>x.id===m.id?m:x));
+    setMeetModal(null);
+  };
+  const saveTrain = () => {
+    const t={...trainF,dates:trainF.dates.filter(d=>d),capacity:Number(trainF.capacity)};
+    if(trainModal==="new")setTrainings(p=>[...p,t]);else setTrainings(p=>p.map(x=>x.id===t.id?t:x));
+    setTrainModal(null);
+  };
+
+  // Sort helpers
+  const sortedOff = [...officials].filter(o=>o.name.includes(search)||o.kana.includes(search)||o.id.includes(search)).sort((a,b)=>{
+    const v = offSort.key==="id" ? a.id.localeCompare(b.id) : offSort.key==="name" ? a.name.localeCompare(b.name,"ja") : offSort.key==="qualification" ? a.qualification.localeCompare(b.qualification) : offSort.key==="expiry" ? (a.expiry||"").localeCompare(b.expiry||"") : 0;
+    return v * offSort.dir;
+  });
+  const sortedMeets = [...meets].sort((a,b)=>{
+    const v = meetSort.key==="date" ? a.dates[0].localeCompare(b.dates[0]) : meetSort.key==="name" ? a.name.localeCompare(b.name,"ja") : meetSort.key==="venue" ? a.venue.localeCompare(b.venue,"ja") : 0;
+    return v * meetSort.dir;
+  });
+  const sortedTrainings = [...trainings].sort((a,b)=>{
+    const v = trainSort.key==="date" ? a.dates[0].localeCompare(b.dates[0]) : trainSort.key==="name" ? a.name.localeCompare(b.name,"ja") : 0;
+    return v * trainSort.dir;
+  });
+
+  const SortTh = ({ label, sortKey, sortState, setSortState }) => {
+    const active = sortState.key===sortKey;
+    return (
+      <th onClick={()=>setSortState(p=>({ key:sortKey, dir: p.key===sortKey ? p.dir*-1 : 1 }))} style={{cursor:"pointer",userSelect:"none",whiteSpace:"nowrap"}}>
+        {label} <span style={{opacity:active?1:0.3,fontSize:"0.7rem"}}>{active&&sortState.dir===1?"▲":"▼"}</span>
+      </th>
+    );
+  };
+
+  const getAtt = (oId,itemId,date) => attendance[`${oId}_${itemId}_${date}`]||"未回答";
+  const attItems = attType==="meet" ? meets : trainings;
+  const selItem = attItems.find(x=>x.id===selectedId);
+
+  const EventModal = ({ form, setForm, modal, setModal, save, prefix }) => (
+    <div className="modal-overlay">
+      <div className="modal modal-wide" onClick={e=>e.stopPropagation()}>
+        <h3>{modal==="new"?`${prefix} 新規登録`:`${prefix} 編集`}</h3>
+        <div className="form-grid">
+          <div className="field-group"><label>ID</label><input value={form.id} onChange={e=>setForm(p=>({...p,id:e.target.value}))} readOnly={modal==="edit"}/></div>
+          <div className="field-group field-full"><label>名称</label><input value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))}/></div>
+          <div className="field-group field-full">
+            <label>開催日（複数日対応）</label>
+            {form.dates.map((d,i)=>(
+              <div key={i} className="date-row">
+                <input type="date" value={d} onChange={e=>{const nd=[...form.dates];nd[i]=e.target.value;setForm(p=>({...p,dates:nd}));}}/>
+                {form.dates.length>1&&<button className="btn-icon-del" onClick={()=>setForm(p=>({...p,dates:p.dates.filter((_,j)=>j!==i)}))}>✕</button>}
+              </div>
+            ))}
+            <button className="btn-add-date" onClick={()=>setForm(p=>({...p,dates:[...p.dates,""]}))}>＋ 日付を追加</button>
+          </div>
+          <div className="field-group"><label>会場</label><input value={form.venue} onChange={e=>setForm(p=>({...p,venue:e.target.value}))}/></div>
+          <div className="field-group"><label>水路</label>
+            <select value={form.lane} onChange={e=>setForm(p=>({...p,lane:e.target.value}))}>
+              <option value="25m">25m</option><option value="50m">50m</option><option value="-">なし</option>
+            </select>
+          </div>
+          <div className="field-group"><label>主催団体</label><input value={form.organizer||""} onChange={e=>setForm(p=>({...p,organizer:e.target.value}))}/></div>
+          <div className="field-group"><label>受付締切日</label><input type="date" value={form.deadline} onChange={e=>setForm(p=>({...p,deadline:e.target.value}))}/></div>
+          <div className="field-group"><label>定員</label><input type="number" value={form.capacity} onChange={e=>setForm(p=>({...p,capacity:e.target.value}))}/></div>
+        </div>
+        <div className="modal-actions">
+          <button className="btn-secondary" onClick={()=>setModal(null)}>キャンセル</button>
+          <button className="btn-primary" onClick={save}>保存</button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // CSV modal
+  const buildCSV = (headers, rows) => {
+    const escape = v => { const s = v==null?"":String(v); return s.includes(",")||s.includes('"')||s.includes("\n")?`"${s.replace(/"/g,'""')}"`:s; };
+    return [headers,...rows].map(r=>r.map(escape).join(",")).join("\n");
+  };
+  const exportOfficials = () => {
+    const h = ["登録番号","氏名","読み仮名","資格","有効期限","生年月日","年齢","メールアドレス","携帯電話"];
+    const r = sortedOff.map(o=>[o.id,o.name,o.kana,o.qualification,o.expiry||"",o.birthdate||"",calcAge(o.birthdate),o.email||"",o.phone||""]);
+    setCsvModal({ title:"役員一覧", content: buildCSV(h,r) });
+  };
+  const exportMeets = () => {
+    const h = ["ID","大会名","開催日（開始）","開催日（終了）","会場","水路","主催","受付締切","定員"];
+    const r = sortedMeets.map(m=>[m.id,m.name,m.dates[0]||"",m.dates[m.dates.length-1]||"",m.venue,m.lane||"",m.organizer||"",m.deadline||"",m.capacity]);
+    setCsvModal({ title:"大会一覧", content: buildCSV(h,r) });
+  };
+  const exportTrainings = () => {
+    const h = ["ID","研修会名","種別","対象資格","開催日（開始）","開催日（終了）","会場","主催","受付締切","定員","備考"];
+    const r = sortedTrainings.map(t=>[t.id,t.name,t.category||"",(t.targetQual||[]).join("・"),t.dates[0]||"",t.dates[t.dates.length-1]||"",t.venue,t.organizer||"",t.deadline||"",t.capacity,t.notes||""]);
+    setCsvModal({ title:"研修会一覧", content: buildCSV(h,r) });
+  };
+  const exportAttendance = () => {
+    if(!selItem) return;
+    const h = ["登録番号","氏名","資格",...selItem.dates];
+    const r = officials.map(o=>[o.id,o.name,o.qualification,...selItem.dates.map(d=>getAtt(o.id,selItem.id,d))]);
+    setCsvModal({ title:`出欠 ${selItem.name}`, content: buildCSV(h,r) });
+  };
+
+  return (
+    <div className="main-wrap">
+      <aside className="sidebar">
+        <div className="sidebar-logo">
+          <svg viewBox="0 0 40 40" width="32" height="32">
+            <ellipse cx="20" cy="20" rx="18" ry="18" fill="none" stroke="#38bdf8" strokeWidth="2"/>
+            <path d="M6 26 Q13 18 20 26 Q27 34 34 26" fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round"/>
+            <path d="M6 18 Q13 10 20 18 Q27 26 34 18" fill="none" stroke="#7dd3fc" strokeWidth="1.5" strokeLinecap="round"/>
+            <circle cx="20" cy="13" r="3.5" fill="#38bdf8" opacity="0.9"/>
+          </svg>
+          <span>管理者パネル</span>
+        </div>
+        <nav className="sidebar-nav">
+          {[["officials","役員管理"],["meets","大会管理"],["trainings","研修会管理"],["attendance","出欠状況"],["dashboard","ダッシュボード"]].map(([k,l])=>(
+            <div key={k} className={`nav-item ${tab===k?"active":""}`} onClick={()=>setTab(k)}>{l}</div>
+          ))}
+        </nav>
+        <button className="logout-btn" onClick={onLogout}>ログアウト</button>
+      </aside>
+      <main className="content">
+
+        {tab==="officials" && (
+          <>
+            <div className="page-header"><h2>役員管理</h2><div style={{display:"flex",gap:"8px"}}><button className="btn-csv" onClick={exportOfficials}>⬇ CSV出力</button><button className="btn-primary" onClick={()=>{setOffF({...emptyOff});setOffModal("new");}}>＋ 新規登録</button></div></div>
+            <div className="search-bar"><input placeholder="氏名・読み仮名・登録番号で検索" value={search} onChange={e=>setSearch(e.target.value)}/></div>
+            <div className="table-wrap">
+              <table className="data-table">
+                <thead><tr>
+                  <SortTh label="登録番号" sortKey="id" sortState={offSort} setSortState={setOffSort}/>
+                  <SortTh label="氏名" sortKey="name" sortState={offSort} setSortState={setOffSort}/>
+                  <th>読み仮名</th>
+                  <SortTh label="資格" sortKey="qualification" sortState={offSort} setSortState={setOffSort}/>
+                  <SortTh label="有効期限" sortKey="expiry" sortState={offSort} setSortState={setOffSort}/>
+                  <th>生年月日</th><th>年齢</th><th>メール</th><th>携帯</th><th>PW</th><th>操作</th>
+                </tr></thead>
+                <tbody>
+                  {sortedOff.map(o=>(
+                    <tr key={o.id}>
+                      <td className="mono">{o.id}</td><td className="bold">{o.name}</td><td>{o.kana}</td>
+                      <td><QualBadge q={o.qualification}/></td>
+                      <td>{formatDate(o.expiry)}</td><td>{formatDate(o.birthdate)}</td><td>{calcAge(o.birthdate)}歳</td>
+                      <td style={{fontSize:"0.78rem"}}>{o.email||<span style={{color:"#475569"}}>未登録</span>}</td>
+                      <td style={{fontSize:"0.78rem"}}>{o.phone||<span style={{color:"#475569"}}>未登録</span>}</td>
+                      <td>{o.password?<span style={{color:"#64748b",fontSize:"0.8rem"}}>••••</span>:<span style={{color:"#f87171",fontSize:"0.72rem"}}>未設定</span>}</td>
+                      <td>
+                        <button className="btn-edit" onClick={()=>{setOffF({...o});setOffModal("edit");}}>編集</button>
+                        <button className="btn-delete" onClick={()=>confirm(`「${o.name}」を削除しますか？`,()=>setOfficials(p=>p.filter(x=>x.id!==o.id)))}>削除</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
+        {tab==="meets" && (
+          <>
+            <div className="page-header"><h2>大会管理</h2><div style={{display:"flex",gap:"8px"}}><button className="btn-csv" onClick={exportMeets}>⬇ CSV出力</button><button className="btn-primary" onClick={()=>{setMeetF({...emptyEv,id:"M"+String(meets.length+1).padStart(3,"0")});setMeetModal("new");}}>＋ 新規登録</button></div></div>
+            <div className="table-wrap">
+              <table className="data-table">
+                <thead><tr>
+                  <th>ID</th>
+                  <SortTh label="大会名" sortKey="name" sortState={meetSort} setSortState={setMeetSort}/>
+                  <SortTh label="開催日" sortKey="date" sortState={meetSort} setSortState={setMeetSort}/>
+                  <SortTh label="会場" sortKey="venue" sortState={meetSort} setSortState={setMeetSort}/>
+                  <th>水路</th><th>主催</th><th>受付締切</th><th>定員</th><th>操作</th>
+                </tr></thead>
+                <tbody>
+                  {sortedMeets.map(m=>(
+                    <tr key={m.id}><td className="mono">{m.id}</td><td className="bold">{m.name}</td><td>{m.dates.map(formatDate).join(" 〜 ")}</td><td>{m.venue}</td>
+                      <td>{m.lane&&m.lane!=="-"?<span className="lane-badge">{m.lane}</span>:<span style={{color:"#475569"}}>-</span>}</td>
+                      <td style={{fontSize:"0.78rem"}}>{m.organizer||"-"}</td>
+                      <td>{formatDate(m.deadline)}</td><td>{m.capacity}名</td>
+                      <td>
+                        <button className="btn-edit" onClick={()=>{setMeetF({...m,dates:[...m.dates]});setMeetModal("edit");}}>編集</button>
+                        <button className="btn-delete" onClick={()=>confirm(`「${m.name}」を削除しますか？`,()=>setMeets(p=>p.filter(x=>x.id!==m.id)))}>削除</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
+        {tab==="trainings" && (
+          <>
+            <div className="page-header"><h2>研修会管理</h2><div style={{display:"flex",gap:"8px"}}><button className="btn-csv" onClick={exportTrainings}>⬇ CSV出力</button><button className="btn-primary" onClick={()=>{setTrainF({...emptyTrain,id:"T"+String(trainings.length+1).padStart(3,"0")});setTrainModal("new");}}>＋ 新規登録</button></div></div>
+            <div className="table-wrap">
+              <table className="data-table">
+                <thead><tr>
+                  <th>ID</th>
+                  <SortTh label="研修会名" sortKey="name" sortState={trainSort} setSortState={setTrainSort}/>
+                  <th>種別</th><th>対象資格</th>
+                  <SortTh label="開催日" sortKey="date" sortState={trainSort} setSortState={setTrainSort}/>
+                  <th>会場</th><th>主催</th><th>受付締切</th><th>定員</th><th>操作</th>
+                </tr></thead>
+                <tbody>
+                  {sortedTrainings.map(t=>(
+                    <tr key={t.id}><td className="mono">{t.id}</td><td className="bold">{t.name}</td>
+                      <td>{t.category&&<span className={`train-cat-badge ${t.category==="義務"?"cat-required":"cat-optional"}`}>{t.category}</span>}</td>
+                      <td style={{fontSize:"0.78rem"}}>{(t.targetQual||[]).join("・")||<span style={{color:"#475569"}}>全員</span>}</td>
+                      <td>{t.dates.map(formatDate).join(" 〜 ")}</td><td>{t.venue}</td>
+                      <td style={{fontSize:"0.78rem"}}>{t.organizer||"-"}</td>
+                      <td>{formatDate(t.deadline)}</td><td>{t.capacity}名</td>
+                      <td>
+                        <button className="btn-edit" onClick={()=>{setTrainF({...t,dates:[...t.dates],targetQual:[...(t.targetQual||[])]});setTrainModal("edit");}}>編集</button>
+                        <button className="btn-delete" onClick={()=>confirm(`「${t.name}」を削除しますか？`,()=>setTrainings(p=>p.filter(x=>x.id!==t.id)))}>削除</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
+        {tab==="attendance" && (
+          <>
+            <div className="page-header"><h2>出欠状況</h2>{selItem&&<button className="btn-csv" onClick={exportAttendance}>⬇ CSV出力</button>}</div>
+            <div className="att-type-toggle">
+              <button className={`att-type-btn ${attType==="meet"?"active":""}`} onClick={()=>{setAttType("meet");setSelectedId(meets[0]?.id||"");}}>大会</button>
+              <button className={`att-type-btn ${attType==="training"?"active":""}`} onClick={()=>{setAttType("training");setSelectedId(trainings[0]?.id||"");}}>研修会</button>
+            </div>
+            <div className="field-group" style={{marginBottom:"20px",maxWidth:"400px"}}>
+              <label>{attType==="meet"?"大会を選択":"研修会を選択"}</label>
+              <select value={selectedId} onChange={e=>setSelectedId(e.target.value)}>
+                {attItems.map(x=><option key={x.id} value={x.id}>{x.name}（{x.dates[0]}）</option>)}
+              </select>
+            </div>
+            {selItem && (
+              <>
+                <div className="att-meet-info">
+                  <span className="bold">{selItem.name}</span>
+                  <span>{selItem.dates.map(formatDate).join(" 〜 ")}</span>
+                  <span>{selItem.venue}</span>
+                  {selItem.lane!=="-"&&selItem.lane&&<span className="lane-badge">{selItem.lane}</span>}
+                  <span>締切：{formatDate(selItem.deadline)}</span>
+                </div>
+                {selItem.dates.map(date=>{
+                  const yes=officials.filter(o=>getAtt(o.id,selItem.id,date)==="参加").length;
+                  const no=officials.filter(o=>getAtt(o.id,selItem.id,date)==="不参加").length;
+                  return (
+                    <div key={date} className="att-date-stat-block">
+                      <div className="att-date-stat-title">📅 {formatDate(date)}</div>
+                      <div className="att-date-stat-row">
+                        <div className="att-stat att-stat-yes"><div className="att-stat-num">{yes}</div><div className="att-stat-label">参加</div></div>
+                        <div className="att-stat att-stat-no"><div className="att-stat-num">{no}</div><div className="att-stat-label">不参加</div></div>
+                        <div className="att-stat att-stat-pending"><div className="att-stat-num">{officials.length-yes-no}</div><div className="att-stat-label">未回答</div></div>
+                        <div className="att-stat"><div className="att-stat-num">{selItem.capacity}</div><div className="att-stat-label">定員</div></div>
+                      </div>
+                    </div>
+                  );
+                })}
+                <div className="table-wrap">
+                  <table className="data-table">
+                    <thead><tr><th>登録番号</th><th>氏名</th><th>資格</th>{selItem.dates.map(d=><th key={d}>{formatDate(d)}</th>)}</tr></thead>
+                    <tbody>
+                      {officials.map(o=>(
+                        <tr key={o.id}>
+                          <td className="mono">{o.id}</td><td className="bold">{o.name}</td>
+                          <td><QualBadge q={o.qualification}/></td>
+                          {selItem.dates.map(d=><td key={d}><AttBadge status={getAtt(o.id,selItem.id,d)}/></td>)}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </>
+        )}
+
+        {tab==="dashboard" && <Dashboard officials={officials} meets={meets} trainings={trainings} attendance={attendance} todayStr={todayStr}/>}
+      </main>
+
+      {offModal && (
+        <div className="modal-overlay">
+          <div className="modal modal-wide" onClick={e=>e.stopPropagation()}>
+            <h3>{offModal==="new"?"役員 新規登録":"役員 編集"}</h3>
+            <div className="form-grid">
+              <div className="field-group"><label>登録番号（6桁数字）</label><input value={offF.id} onChange={e=>setOffF(p=>({...p,id:e.target.value.replace(/\D/g,"").slice(0,6)}))} placeholder="例：400356" readOnly={offModal==="edit"} maxLength={6} style={offModal==="edit"?{opacity:0.6,cursor:"not-allowed"}:{}}/></div>
+              <div className="field-group"><label>氏名</label><input value={offF.name} onChange={e=>setOffF(p=>({...p,name:e.target.value}))}/></div>
+              <div className="field-group"><label>読み仮名</label><input value={offF.kana} onChange={e=>setOffF(p=>({...p,kana:e.target.value}))}/></div>
+              <div className="field-group"><label>資格</label>
+                <select value={offF.qualification} onChange={e=>setOffF(p=>({...p,qualification:e.target.value}))}>
+                  {["A級審判","B級審判","C級審判","なし"].map(q=><option key={q}>{q}</option>)}
+                </select>
+              </div>
+              <div className="field-group"><label>有効期限</label><input type="date" value={offF.expiry} onChange={e=>setOffF(p=>({...p,expiry:e.target.value}))}/></div>
+              <div className="field-group"><label>生年月日</label><input type="date" value={offF.birthdate} onChange={e=>setOffF(p=>({...p,birthdate:e.target.value}))}/></div>
+              <div className="field-group field-full"><label>メールアドレス</label><input type="email" value={offF.email||""} onChange={e=>setOffF(p=>({...p,email:e.target.value}))} placeholder="例：yamada@example.com"/></div>
+              <div className="field-group field-full"><label>携帯電話</label><input type="tel" value={offF.phone||""} onChange={e=>setOffF(p=>({...p,phone:e.target.value}))} placeholder="例：090-1234-5678"/></div>
+              <div className="field-group field-full">
+                <label>パスワード{offModal==="edit"&&<span style={{fontWeight:"normal",color:"#64748b",marginLeft:"6px"}}>（変更する場合のみ入力）</span>}</label>
+                <input type="text" value={offF.password||""} onChange={e=>setOffF(p=>({...p,password:e.target.value}))} placeholder={offModal==="edit"?"空欄のままにすると現在のパスワードを維持します":"ログイン用パスワードを設定"} autoComplete="off"/>
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button className="btn-secondary" onClick={()=>setOffModal(null)}>キャンセル</button>
+              <button className="btn-primary" onClick={saveOff}>保存</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {meetModal && <EventModal form={meetF} setForm={setMeetF} modal={meetModal} setModal={setMeetModal} save={saveMeet} prefix="大会"/>}
+      {trainModal && (
+        <div className="modal-overlay">
+          <div className="modal modal-wide" onClick={e=>e.stopPropagation()}>
+            <h3>{trainModal==="new"?"研修会 新規登録":"研修会 編集"}</h3>
+            <div className="form-grid">
+              <div className="field-group"><label>ID</label><input value={trainF.id} onChange={e=>setTrainF(p=>({...p,id:e.target.value}))} readOnly={trainModal==="edit"}/></div>
+              <div className="field-group field-full"><label>研修会名</label><input value={trainF.name} onChange={e=>setTrainF(p=>({...p,name:e.target.value}))}/></div>
+              <div className="field-group"><label>種別</label>
+                <select value={trainF.category||"任意"} onChange={e=>setTrainF(p=>({...p,category:e.target.value}))}>
+                  <option value="義務">義務</option><option value="任意">任意</option><option value="推奨">推奨</option>
+                </select>
+              </div>
+              <div className="field-group"><label>主催団体</label><input value={trainF.organizer||""} onChange={e=>setTrainF(p=>({...p,organizer:e.target.value}))} placeholder="例：福岡県水泳連盟審判委員会"/></div>
+              <div className="field-group field-full">
+                <label>対象資格（複数選択可）</label>
+                <div className="qual-check-row">
+                  {["A級審判","B級審判","C級審判","なし"].map(q=>{
+                    const checked=(trainF.targetQual||[]).includes(q);
+                    return (
+                      <label key={q} className="qual-check-label">
+                        <input type="checkbox" checked={checked} onChange={()=>{
+                          const tq=trainF.targetQual||[];
+                          setTrainF(p=>({...p,targetQual:checked?tq.filter(x=>x!==q):[...tq,q]}));
+                        }}/> {q}
+                      </label>
+                    );
+                  })}
+                  <span className="qual-check-hint">（未選択の場合は全員対象）</span>
+                </div>
+              </div>
+              <div className="field-group field-full">
+                <label>開催日（複数日対応）</label>
+                {trainF.dates.map((d,i)=>(
+                  <div key={i} className="date-row">
+                    <input type="date" value={d} onChange={e=>{const nd=[...trainF.dates];nd[i]=e.target.value;setTrainF(p=>({...p,dates:nd}));}}/>
+                    {trainF.dates.length>1&&<button className="btn-icon-del" onClick={()=>setTrainF(p=>({...p,dates:p.dates.filter((_,j)=>j!==i)}))}>✕</button>}
+                  </div>
+                ))}
+                <button className="btn-add-date" onClick={()=>setTrainF(p=>({...p,dates:[...p.dates,""]}))}>＋ 日付を追加</button>
+              </div>
+              <div className="field-group"><label>会場</label><input value={trainF.venue} onChange={e=>setTrainF(p=>({...p,venue:e.target.value}))}/></div>
+              <div className="field-group"><label>受付締切日</label><input type="date" value={trainF.deadline} onChange={e=>setTrainF(p=>({...p,deadline:e.target.value}))}/></div>
+              <div className="field-group"><label>定員</label><input type="number" value={trainF.capacity} onChange={e=>setTrainF(p=>({...p,capacity:e.target.value}))}/></div>
+              <div className="field-group field-full"><label>備考・メモ</label><textarea value={trainF.notes||""} onChange={e=>setTrainF(p=>({...p,notes:e.target.value}))} placeholder="例：A・B級審判は必ず出席のこと" rows={2} style={{width:"100%",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(56,189,248,0.2)",borderRadius:"8px",padding:"10px 12px",color:"#e2eaf5",fontFamily:"'Noto Sans JP',sans-serif",fontSize:"0.9rem",outline:"none",resize:"vertical"}}/></div>
+            </div>
+            <div className="modal-actions">
+              <button className="btn-secondary" onClick={()=>setTrainModal(null)}>キャンセル</button>
+              <button className="btn-primary" onClick={saveTrain}>保存</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {confirmDlg && (
+        <div className="modal-overlay" onClick={()=>setConfirmDlg(null)}>
+          <div className="confirm-dialog" onClick={e=>e.stopPropagation()}>
+            <div className="confirm-icon">{confirmDlg.onOk ? "🗑️" : "⚠️"}</div>
+            <div className="confirm-message">{confirmDlg.message}</div>
+            <div className="confirm-actions">
+              {confirmDlg.onOk ? (
+                <>
+                  <button className="btn-secondary" onClick={()=>setConfirmDlg(null)}>キャンセル</button>
+                  <button className="btn-delete-confirm" onClick={()=>{ confirmDlg.onOk(); setConfirmDlg(null); }}>削除する</button>
+                </>
+              ) : (
+                <button className="btn-primary" onClick={()=>setConfirmDlg(null)}>OK</button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      {csvModal && (
+        <div className="modal-overlay" onClick={()=>setCsvModal(null)}>
+          <div className="csv-modal" onClick={e=>e.stopPropagation()}>
+            <div className="csv-modal-header">
+              <div>
+                <div className="csv-modal-title">📋 {csvModal.title}</div>
+                <div className="csv-modal-hint">テキストをコピーしてExcelに貼り付けてください</div>
+              </div>
+              <div style={{display:"flex",gap:"8px",alignItems:"center"}}>
+                <button className="btn-csv" style={{fontSize:"0.82rem",padding:"7px 14px"}} onClick={()=>{
+                  navigator.clipboard.writeText(csvModal.content).then(()=>{
+                    setCsvModal(p=>({...p,copied:true}));
+                    setTimeout(()=>setCsvModal(p=>p?{...p,copied:false}:null),2000);
+                  }).catch(()=>{
+                    const ta=document.getElementById("csv-ta");
+                    if(ta){ta.select();document.execCommand("copy");setCsvModal(p=>({...p,copied:true}));setTimeout(()=>setCsvModal(p=>p?{...p,copied:false}:null),2000);}
+                  });
+                }}>{csvModal.copied?"✅ コピー済み！":"📋 全文コピー"}</button>
+                <button className="csv-close-btn" onClick={()=>setCsvModal(null)}>✕</button>
+              </div>
+            </div>
+            <textarea id="csv-ta" className="csv-textarea" value={csvModal.content} readOnly
+              onClick={e=>e.target.select()} onFocus={e=>e.target.select()}
+            />
+            <div className="csv-modal-footer">
+              💡 テキストエリアをクリックで全選択 → Ctrl+C（Mac: ⌘+C）でコピー
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ===== DASHBOARD =====
+function Dashboard({ officials, meets, trainings, attendance, todayStr }) {
+  const upM = meets.filter(m=>m.dates[0]>=todayStr).length;
+  const upT = trainings.filter(t=>t.dates[0]>=todayStr).length;
+  const expired = officials.filter(o=>o.expiry&&o.expiry<todayStr).length;
+  const qualC = ["A級審判","B級審判","C級審判","なし"].map(q=>({q,c:officials.filter(o=>o.qualification===q).length}));
+  const nextM = meets.filter(m=>m.dates[0]>=todayStr).sort((a,b)=>a.dates[0].localeCompare(b.dates[0])).slice(0,3);
+  return (
+    <>
+      <div className="page-header"><h2>ダッシュボード</h2></div>
+      <div className="stats-grid">
+        <div className="stat-card"><div className="stat-num">{officials.length}</div><div className="stat-label">登録役員数</div></div>
+        <div className="stat-card accent"><div className="stat-num">{upM}</div><div className="stat-label">開催予定大会</div></div>
+        <div className="stat-card accent"><div className="stat-num">{upT}</div><div className="stat-label">予定研修会</div></div>
+        <div className="stat-card warn"><div className="stat-num">{expired}</div><div className="stat-label">資格期限切れ</div></div>
+      </div>
+      <div className="dash-row">
+        <div className="dash-block">
+          <div className="section-title">資格別役員数</div>
+          {qualC.map(({q,c})=>(
+            <div key={q} className="qual-row">
+              <span className="qual-label">{q}</span>
+              <div className="qual-bar-wrap"><div className="qual-bar" style={{width:`${officials.length?(c/officials.length)*100:0}%`}}/></div>
+              <span className="qual-count">{c}名</span>
+            </div>
+          ))}
+        </div>
+        <div className="dash-block">
+          <div className="section-title">直近の大会</div>
+          {nextM.map(m=>(
+            <div className="upcoming-item" key={m.id}>
+              <div className="upcoming-name">{m.name}</div>
+              <div className="upcoming-meta">{m.dates.map(formatDate).join(" 〜 ")} / {m.venue} / {m.lane}</div>
+              <div className="upcoming-att-mini">
+                {m.dates.map(date=>{
+                  const y=officials.filter(o=>attendance[`${o.id}_${m.id}_${date}`]==="参加").length;
+                  const n=officials.filter(o=>attendance[`${o.id}_${m.id}_${date}`]==="不参加").length;
+                  return <div key={date} style={{marginTop:"3px"}}>
+                    <span style={{fontSize:"0.7rem",color:"#64748b"}}>{formatDate(date)}：</span>
+                    <span className="att-mini-yes">参加 {y}名</span>
+                    <span className="att-mini-no">不参加 {n}名</span>
+                    <span className="att-mini-pending">未回答 {officials.length-y-n}名</span>
+                  </div>;
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ===== ROOT =====
+function App() {
+  const [auth, setAuth] = useState(null);
+
+  const load = (key, fallback) => {
+    try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
+  };
+  const [officials, setOfficials] = useState(() => load("swm_officials", initialOfficials));
+  const [meets, setMeets] = useState(() => load("swm_meets", initialMeets));
+  const [trainings, setTrainings] = useState(() => load("swm_trainings", initialTrainings));
+  const [attendance, setAttendance] = useState(() => load("swm_attendance", {}));
+
+  // 変更があるたびに自動保存
+  
+  useEffect(() => { try { localStorage.setItem("swm_officials", JSON.stringify(officials)); } catch {} }, [officials]);
+  useEffect(() => { try { localStorage.setItem("swm_meets", JSON.stringify(meets)); } catch {} }, [meets]);
+  useEffect(() => { try { localStorage.setItem("swm_trainings", JSON.stringify(trainings)); } catch {} }, [trainings]);
+  useEffect(() => { try { localStorage.setItem("swm_attendance", JSON.stringify(attendance)); } catch {} }, [attendance]);
+
+  return (
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;600;700&display=swap');
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+        body{font-family:'Noto Sans JP',sans-serif;background:#0a1628;color:#e2eaf5;}
+        .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;background:linear-gradient(160deg,#0a1628 0%,#0c2340 50%,#0a1e35 100%);}
+        .login-bg{position:absolute;inset:0;overflow:hidden;pointer-events:none;}
+        .wave{position:absolute;left:-10%;width:120%;height:2px;background:linear-gradient(90deg,transparent,rgba(56,189,248,0.15),transparent);animation:wavemove 8s linear infinite;}
+        .wave-0{opacity:0.6;}.wave-1{opacity:0.3;animation-duration:11s;}.wave-2{opacity:0.15;animation-duration:15s;}.wave-3{opacity:0.4;animation-duration:9s;}
+        @keyframes wavemove{0%{transform:translateX(0) scaleY(1);}50%{transform:translateX(-5%) scaleY(2.5);}100%{transform:translateX(0) scaleY(1);}}
+        .login-card{position:relative;z-index:1;background:rgba(15,30,55,0.85);border:1px solid rgba(56,189,248,0.18);backdrop-filter:blur(20px);border-radius:20px;padding:44px 40px;width:380px;box-shadow:0 24px 60px rgba(0,0,0,0.5);animation:fadeup 0.6s ease;}
+        @keyframes fadeup{from{opacity:0;transform:translateY(24px);}to{opacity:1;transform:translateY(0);}}
+        .login-logo{display:flex;justify-content:center;margin-bottom:12px;}
+        .login-title{font-family:'Outfit',sans-serif;font-size:1.35rem;font-weight:700;text-align:center;letter-spacing:0.04em;}
+        .login-subtitle{text-align:center;font-size:0.78rem;color:#7dd3fc;margin-bottom:24px;margin-top:4px;letter-spacing:0.1em;}
+        .tab-row{display:flex;background:rgba(255,255,255,0.04);border-radius:10px;padding:4px;margin-bottom:22px;}
+        .tab-btn{flex:1;padding:8px;border:none;background:transparent;color:#94a3b8;font-family:'Noto Sans JP',sans-serif;font-size:0.85rem;border-radius:7px;cursor:pointer;transition:all 0.2s;}
+        .tab-btn.active{background:rgba(56,189,248,0.18);color:#38bdf8;font-weight:500;}
+        .field-group{margin-bottom:14px;}
+        .field-group label{display:block;font-size:0.75rem;color:#7dd3fc;margin-bottom:5px;letter-spacing:0.05em;}
+        .field-group input,.field-group select{width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(56,189,248,0.2);border-radius:8px;padding:10px 12px;color:#e2eaf5;font-family:'Noto Sans JP',sans-serif;font-size:0.9rem;outline:none;transition:border-color 0.2s;}
+        .field-group input:focus,.field-group select:focus{border-color:#38bdf8;background:rgba(56,189,248,0.07);}
+        .login-error{font-size:0.78rem;color:#f87171;margin-bottom:10px;text-align:center;animation:shake 0.3s ease;}
+        @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+        .login-btn{width:100%;padding:12px;background:linear-gradient(135deg,#0ea5e9,#38bdf8);border:none;border-radius:10px;color:white;font-family:'Outfit',sans-serif;font-size:0.95rem;font-weight:600;cursor:pointer;margin-top:6px;transition:all 0.2s;position:relative;overflow:hidden;}
+        .login-btn:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(56,189,248,0.35);}
+        .login-btn.ripple::after{content:'';position:absolute;top:50%;left:50%;width:200%;height:200%;background:rgba(255,255,255,0.15);border-radius:50%;transform:translate(-50%,-50%) scale(0);animation:rippleAnim 0.5s ease;}
+        @keyframes rippleAnim{to{transform:translate(-50%,-50%) scale(1);opacity:0;}}
+        .login-hint{font-size:0.72rem;color:#475569;text-align:center;margin-top:12px;}
+        .main-wrap{display:flex;min-height:100vh;}
+        .sidebar{width:220px;background:rgba(10,22,40,0.95);border-right:1px solid rgba(56,189,248,0.1);display:flex;flex-direction:column;padding:24px 0;position:sticky;top:0;height:100vh;}
+        .sidebar-logo{display:flex;align-items:center;gap:10px;padding:0 20px 24px;border-bottom:1px solid rgba(56,189,248,0.08);font-family:'Outfit',sans-serif;font-size:0.88rem;font-weight:600;color:#7dd3fc;}
+        .sidebar-nav{flex:1;padding-top:16px;}
+        .nav-item{padding:11px 20px;cursor:pointer;font-size:0.88rem;color:#94a3b8;transition:all 0.18s;border-left:3px solid transparent;display:flex;align-items:center;gap:8px;}
+        .nav-item:hover{color:#e2eaf5;background:rgba(56,189,248,0.06);}
+        .nav-item.active{color:#38bdf8;background:rgba(56,189,248,0.1);border-left-color:#38bdf8;font-weight:500;}
+        .nav-badge{background:#f97316;color:white;border-radius:10px;font-size:0.7rem;padding:1px 7px;font-weight:700;}
+        .logout-btn{margin:16px;background:transparent;border:1px solid rgba(248,113,113,0.3);color:#f87171;border-radius:8px;padding:8px;cursor:pointer;font-family:'Noto Sans JP',sans-serif;font-size:0.82rem;transition:all 0.2s;}
+        .logout-btn:hover{background:rgba(248,113,113,0.1);}
+        .content{flex:1;padding:32px 36px;overflow-x:auto;}
+        .page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
+        .page-header h2{font-family:'Outfit',sans-serif;font-size:1.5rem;font-weight:700;}
+        .header-sub{font-size:0.8rem;color:#64748b;}
+        .section-title{font-family:'Outfit',sans-serif;font-size:0.88rem;font-weight:600;color:#7dd3fc;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:14px;}
+        .official-profile-card{display:flex;gap:28px;background:rgba(15,30,55,0.7);border:1px solid rgba(56,189,248,0.14);border-radius:16px;padding:28px;margin-bottom:24px;}
+        .profile-avatar{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#0ea5e9,#1d4ed8);display:flex;align-items:center;justify-content:center;font-family:'Outfit',sans-serif;font-size:1.8rem;font-weight:700;color:white;flex-shrink:0;}
+        .profile-info h3{font-family:'Outfit',sans-serif;font-size:1.25rem;font-weight:700;margin-bottom:2px;}
+        .profile-kana{font-size:0.78rem;color:#7dd3fc;margin-bottom:12px;letter-spacing:0.08em;}
+        .profile-row{display:flex;align-items:center;gap:12px;margin-bottom:8px;}
+        .profile-label{font-size:0.75rem;color:#64748b;min-width:72px;}
+        .profile-val{font-size:0.88rem;}
+        .profile-section-label{font-size:0.7rem;color:#38bdf8;text-transform:uppercase;letter-spacing:0.1em;margin:12px 0 8px;font-weight:600;}
+        .profile-divider{height:1px;background:rgba(56,189,248,0.1);margin:10px 0;}
+        .unset{color:#475569;font-style:italic;font-size:0.85rem;}
+        .edit-card{background:rgba(15,30,55,0.7);border:1px solid rgba(56,189,248,0.18);border-radius:16px;padding:28px;margin-bottom:24px;}
+        .edit-card-title{font-family:'Outfit',sans-serif;font-size:1.1rem;font-weight:700;margin-bottom:6px;}
+        .edit-note{font-size:0.78rem;color:#64748b;margin-bottom:18px;padding:8px 12px;background:rgba(255,255,255,0.03);border-radius:6px;}
+        .edit-section-label{font-size:0.75rem;color:#38bdf8;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;font-weight:600;}
+        .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+        .field-full{grid-column:1/-1;}
+        .att-type-toggle{display:flex;background:rgba(255,255,255,0.04);border-radius:10px;padding:4px;margin-bottom:20px;width:fit-content;}
+        .att-type-btn{padding:8px 24px;border:none;background:transparent;color:#94a3b8;font-family:'Noto Sans JP',sans-serif;font-size:0.88rem;border-radius:7px;cursor:pointer;transition:all 0.2s;}
+        .att-type-btn.active{background:rgba(56,189,248,0.18);color:#38bdf8;font-weight:500;}
+        .meet-att-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;}
+        .meet-att-card{background:rgba(15,30,55,0.7);border:1px solid rgba(56,189,248,0.12);border-radius:14px;padding:18px;}
+        .meet-att-card.att-card-yes{border-color:rgba(52,211,153,0.4);background:rgba(52,211,153,0.04);}
+        .meet-att-card.att-card-no{border-color:rgba(248,113,113,0.3);background:rgba(248,113,113,0.04);}
+        .meet-att-card.att-card-partial{border-color:rgba(251,191,36,0.35);background:rgba(251,191,36,0.04);}
+        .meet-att-header{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:10px;}
+        .meet-name{font-weight:500;font-size:0.92rem;line-height:1.4;}
+        .meet-meta{display:flex;flex-direction:column;gap:3px;font-size:0.78rem;color:#94a3b8;margin-bottom:10px;}
+        .meet-att-deadline{font-size:0.75rem;color:#94a3b8;margin-bottom:12px;}
+        .deadline-past{color:#f87171;}
+        .date-att-list{display:flex;flex-direction:column;gap:10px;}
+        .date-att-row{display:flex;flex-direction:column;gap:6px;padding:10px 12px;background:rgba(255,255,255,0.03);border-radius:8px;border:1px solid rgba(255,255,255,0.05);}
+        .date-att-label{font-size:0.8rem;color:#7dd3fc;font-weight:500;}
+        .att-btn-row{display:flex;gap:8px;}
+        .att-btn{flex:1;padding:8px 0;border-radius:8px;border:1px solid;font-family:'Noto Sans JP',sans-serif;font-size:0.82rem;cursor:pointer;transition:all 0.18s;font-weight:500;}
+        .att-btn.yes{background:rgba(52,211,153,0.08);border-color:rgba(52,211,153,0.3);color:#34d399;}
+        .att-btn.yes:hover,.att-btn.yes.selected{background:rgba(52,211,153,0.2);border-color:#34d399;box-shadow:0 0 0 2px rgba(52,211,153,0.2);}
+        .att-btn.no{background:rgba(248,113,113,0.08);border-color:rgba(248,113,113,0.3);color:#f87171;}
+        .att-btn.no:hover,.att-btn.no.selected{background:rgba(248,113,113,0.2);border-color:#f87171;box-shadow:0 0 0 2px rgba(248,113,113,0.2);}
+        .att-btn.reset{flex:0;padding:8px 12px;background:transparent;border-color:rgba(100,116,139,0.3);color:#64748b;font-size:0.75rem;}
+        .att-closed{font-size:0.75rem;color:#475569;background:rgba(255,255,255,0.03);padding:6px 10px;border-radius:6px;text-align:center;margin-top:8px;}
+        .att-summary-row{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;}
+        .att-sum{padding:6px 14px;border-radius:8px;font-size:0.82rem;font-weight:500;}
+        .att-sum-yes{background:rgba(52,211,153,0.12);color:#34d399;border:1px solid rgba(52,211,153,0.25);}
+        .att-sum-no{background:rgba(248,113,113,0.12);color:#f87171;border:1px solid rgba(248,113,113,0.25);}
+        .att-sum-partial{background:rgba(251,191,36,0.12);color:#fbbf24;border:1px solid rgba(251,191,36,0.25);}
+        .att-sum-pending{background:rgba(100,116,139,0.12);color:#94a3b8;border:1px solid rgba(100,116,139,0.25);}
+        .att-badge{display:inline-block;padding:3px 9px;border-radius:5px;font-size:0.75rem;font-weight:500;white-space:nowrap;}
+        .att-yes{background:rgba(52,211,153,0.15);color:#34d399;border:1px solid rgba(52,211,153,0.3);}
+        .att-no{background:rgba(248,113,113,0.15);color:#f87171;border:1px solid rgba(248,113,113,0.3);}
+        .att-partial{background:rgba(251,191,36,0.15);color:#fbbf24;border:1px solid rgba(251,191,36,0.3);}
+        .att-pending{background:rgba(100,116,139,0.12);color:#64748b;border:1px solid rgba(100,116,139,0.2);}
+        .att-meet-info{display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-size:0.85rem;color:#94a3b8;margin-bottom:16px;padding:12px 16px;background:rgba(255,255,255,0.03);border-radius:8px;}
+        .att-date-stat-block{margin-bottom:20px;}
+        .att-date-stat-title{font-size:0.85rem;font-weight:600;color:#7dd3fc;margin-bottom:8px;}
+        .att-date-stat-row{display:flex;gap:10px;}
+        .att-stat{background:rgba(15,30,55,0.7);border:1px solid rgba(56,189,248,0.1);border-radius:10px;padding:14px 20px;text-align:center;min-width:80px;}
+        .att-stat-yes{border-color:rgba(52,211,153,0.3);background:rgba(52,211,153,0.06);}
+        .att-stat-no{border-color:rgba(248,113,113,0.25);background:rgba(248,113,113,0.05);}
+        .att-stat-pending{border-color:rgba(100,116,139,0.2);}
+        .att-stat-num{font-family:'Outfit',sans-serif;font-size:1.6rem;font-weight:700;color:#38bdf8;}
+        .att-stat-yes .att-stat-num{color:#34d399;}.att-stat-no .att-stat-num{color:#f87171;}.att-stat-pending .att-stat-num{color:#64748b;}
+        .att-stat-label{font-size:0.72rem;color:#64748b;margin-top:2px;}
+        .att-mini-yes{font-size:0.73rem;color:#34d399;margin-right:8px;}
+        .att-mini-no{font-size:0.73rem;color:#f87171;margin-right:8px;}
+        .att-mini-pending{font-size:0.73rem;color:#64748b;}
+        .upcoming-att-mini{margin-top:5px;}
+        .qual-badge{display:inline-block;padding:3px 9px;border-radius:5px;font-size:0.75rem;font-weight:500;}
+        .badge-a{background:rgba(250,204,21,0.15);color:#fbbf24;border:1px solid rgba(250,204,21,0.3);}
+        .badge-b{background:rgba(56,189,248,0.15);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);}
+        .badge-c{background:rgba(52,211,153,0.15);color:#34d399;border:1px solid rgba(52,211,153,0.3);}
+        .badge-none{background:rgba(100,116,139,0.15);color:#94a3b8;border:1px solid rgba(100,116,139,0.3);}
+        .lane-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.75rem;background:rgba(56,189,248,0.12);color:#7dd3fc;border:1px solid rgba(56,189,248,0.2);font-family:'DM Mono',monospace;}
+        .search-bar{margin-bottom:14px;}
+        .search-bar input{background:rgba(255,255,255,0.05);border:1px solid rgba(56,189,248,0.18);border-radius:8px;padding:9px 14px;color:#e2eaf5;font-family:'Noto Sans JP',sans-serif;font-size:0.88rem;width:300px;outline:none;}
+        .search-bar input:focus{border-color:#38bdf8;}
+        .table-wrap{overflow-x:auto;border-radius:12px;border:1px solid rgba(56,189,248,0.1);}
+        .data-table{width:100%;border-collapse:collapse;font-size:0.85rem;}
+        .data-table th{background:rgba(10,22,40,0.9);color:#7dd3fc;font-family:'Outfit',sans-serif;font-size:0.75rem;font-weight:600;letter-spacing:0.06em;padding:11px 14px;text-align:left;border-bottom:1px solid rgba(56,189,248,0.12);}
+        .data-table td{padding:11px 14px;border-bottom:1px solid rgba(255,255,255,0.04);color:#cbd5e1;}
+        .data-table tr:last-child td{border-bottom:none;}
+        .data-table tr:hover td{background:rgba(56,189,248,0.04);}
+        .data-table td.bold{color:#e2eaf5;font-weight:500;}
+        .btn-edit{background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.25);color:#7dd3fc;padding:4px 10px;border-radius:5px;font-size:0.75rem;cursor:pointer;margin-right:5px;font-family:'Noto Sans JP',sans-serif;transition:all 0.15s;}
+        .btn-edit:hover{background:rgba(56,189,248,0.22);}
+        .btn-delete{background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.25);color:#f87171;padding:4px 10px;border-radius:5px;font-size:0.75rem;cursor:pointer;font-family:'Noto Sans JP',sans-serif;transition:all 0.15s;}
+        .btn-delete:hover{background:rgba(248,113,113,0.2);}
+        .btn-primary{background:linear-gradient(135deg,#0ea5e9,#38bdf8);border:none;color:white;padding:9px 18px;border-radius:8px;cursor:pointer;font-family:'Outfit',sans-serif;font-size:0.88rem;font-weight:600;transition:all 0.2s;}
+        .btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(56,189,248,0.3);}
+        .btn-secondary{background:transparent;border:1px solid rgba(100,116,139,0.4);color:#94a3b8;padding:9px 18px;border-radius:8px;cursor:pointer;font-family:'Noto Sans JP',sans-serif;font-size:0.88rem;}
+        .btn-secondary:hover{border-color:#64748b;}
+        .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.65);display:flex;align-items:center;justify-content:center;z-index:100;backdrop-filter:blur(4px);}
+        .modal{background:#0d2040;border:1px solid rgba(56,189,248,0.2);border-radius:16px;padding:32px;width:480px;max-height:90vh;overflow-y:auto;animation:fadeup 0.25s ease;}
+        .modal-wide{width:580px;}
+        .modal h3{font-family:'Outfit',sans-serif;font-size:1.1rem;font-weight:700;margin-bottom:22px;}
+        .modal-actions{display:flex;gap:10px;justify-content:flex-end;}
+        .date-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+        .date-row input{flex:1;}
+        .btn-icon-del{background:transparent;border:none;color:#f87171;cursor:pointer;font-size:0.9rem;padding:0 4px;}
+        .btn-add-date{background:rgba(56,189,248,0.08);border:1px dashed rgba(56,189,248,0.25);color:#7dd3fc;padding:5px 12px;border-radius:6px;cursor:pointer;font-size:0.78rem;margin-top:4px;font-family:'Noto Sans JP',sans-serif;}
+        .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:28px;}
+        .stat-card{background:rgba(15,30,55,0.7);border:1px solid rgba(56,189,248,0.12);border-radius:12px;padding:20px;text-align:center;}
+        .stat-card.accent{border-color:rgba(56,189,248,0.3);background:rgba(56,189,248,0.07);}
+        .stat-card.warn{border-color:rgba(248,113,113,0.25);background:rgba(248,113,113,0.06);}
+        .stat-num{font-family:'Outfit',sans-serif;font-size:2rem;font-weight:700;color:#38bdf8;}
+        .stat-card.warn .stat-num{color:#f87171;}
+        .stat-label{font-size:0.78rem;color:#64748b;margin-top:4px;}
+        .dash-row{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+        .dash-block{background:rgba(15,30,55,0.7);border:1px solid rgba(56,189,248,0.1);border-radius:12px;padding:20px;}
+        .qual-row{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+        .qual-label{font-size:0.78rem;min-width:68px;color:#94a3b8;}
+        .qual-bar-wrap{flex:1;background:rgba(255,255,255,0.06);border-radius:4px;height:8px;overflow:hidden;}
+        .qual-bar{height:100%;background:linear-gradient(90deg,#0ea5e9,#38bdf8);border-radius:4px;transition:width 0.6s ease;}
+        .qual-count{font-size:0.78rem;color:#7dd3fc;min-width:28px;text-align:right;font-family:'DM Mono',monospace;}
+        .upcoming-item{border-left:3px solid #38bdf8;padding:10px 12px;margin-bottom:10px;background:rgba(56,189,248,0.04);border-radius:0 8px 8px 0;}
+        .upcoming-name{font-size:0.88rem;font-weight:500;margin-bottom:4px;}
+        .upcoming-meta{font-size:0.75rem;color:#64748b;}
+        .bold{font-weight:500;color:#e2eaf5;}.mono{font-family:'DM Mono',monospace;}
+        select option{background:#0d2040;color:#e2eaf5;}
+        .train-cat-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.72rem;font-weight:600;}
+        .cat-required{background:rgba(248,113,113,0.15);color:#f87171;border:1px solid rgba(248,113,113,0.3);}
+        .cat-optional{background:rgba(100,116,139,0.15);color:#94a3b8;border:1px solid rgba(100,116,139,0.3);}
+        .cat-recommended{background:rgba(56,189,248,0.15);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);}
+        .train-notes{font-style:italic;color:#fbbf24;font-size:0.76rem;}
+        .qual-check-row{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:8px 0;}
+        .qual-check-label{display:flex;align-items:center;gap:6px;font-size:0.85rem;color:#cbd5e1;cursor:pointer;}
+        .qual-check-label input[type=checkbox]{accent-color:#38bdf8;width:14px;height:14px;}
+        .qual-check-hint{font-size:0.72rem;color:#475569;margin-left:4px;}
+        .btn-csv{background:rgba(52,211,153,0.12);border:1px solid rgba(52,211,153,0.3);color:#34d399;padding:9px 16px;border-radius:8px;cursor:pointer;font-family:'Outfit',sans-serif;font-size:0.85rem;font-weight:600;transition:all 0.2s;white-space:nowrap;}
+        .btn-csv:hover{background:rgba(52,211,153,0.22);transform:translateY(-1px);box-shadow:0 4px 12px rgba(52,211,153,0.2);}
+        .csv-modal{background:#0d2040;border:1px solid rgba(56,189,248,0.2);border-radius:16px;padding:24px;width:min(820px,92vw);max-height:85vh;display:flex;flex-direction:column;gap:14px;animation:fadeup 0.2s ease;}
+        .csv-modal-header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
+        .csv-modal-title{font-size:1.05rem;font-weight:700;color:#e2eaf5;}
+        .csv-modal-hint{font-size:0.78rem;color:#64748b;margin-top:3px;}
+        .csv-textarea{flex:1;min-height:380px;background:#060f1e;border:1px solid rgba(56,189,248,0.15);border-radius:10px;color:#94d4f0;font-family:'DM Mono',monospace;font-size:0.75rem;padding:14px;resize:vertical;line-height:1.6;cursor:text;}
+        .csv-textarea:focus{outline:none;border-color:rgba(56,189,248,0.35);}
+        .csv-modal-footer{font-size:0.75rem;color:#475569;text-align:center;}
+        .csv-close-btn{background:rgba(100,116,139,0.15);border:1px solid rgba(100,116,139,0.25);color:#94a3b8;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:0.9rem;display:flex;align-items:center;justify-content:center;transition:all 0.2s;flex-shrink:0;}
+        .csv-close-btn:hover{background:rgba(248,113,113,0.15);color:#f87171;border-color:rgba(248,113,113,0.3);}
+        .confirm-dialog{background:#0d2040;border:1px solid rgba(248,113,113,0.3);border-radius:16px;padding:32px 28px;width:360px;text-align:center;animation:fadeup 0.2s ease;}
+        .confirm-icon{font-size:2rem;margin-bottom:12px;}
+        .confirm-message{font-size:0.95rem;color:#e2eaf5;line-height:1.6;margin-bottom:24px;}
+        .confirm-actions{display:flex;gap:10px;justify-content:center;}
+        .btn-delete-confirm{background:linear-gradient(135deg,#dc2626,#f87171);border:none;color:white;padding:9px 22px;border-radius:8px;cursor:pointer;font-family:'Outfit',sans-serif;font-size:0.88rem;font-weight:600;transition:all 0.2s;}
+        .btn-delete-confirm:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(248,113,113,0.35);}
+      `}</style>
+      {!auth && <LoginScreen onLogin={(r,id)=>setAuth({role:r,userId:id})} officials={officials}/>}
+      {auth?.role==="official" && <OfficialView userId={auth.userId} officials={officials} setOfficials={setOfficials} meets={meets} trainings={trainings} attendance={attendance} setAttendance={setAttendance} onLogout={()=>setAuth(null)}/>}
+      {auth?.role==="admin" && <AdminView officials={officials} setOfficials={setOfficials} meets={meets} setMeets={setMeets} trainings={trainings} setTrainings={setTrainings} attendance={attendance} onLogout={()=>setAuth(null)}/>}
+    </>
+  );
+}
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
