@@ -163,20 +163,35 @@ function AttCard({ item, userId, attendance, setAttendance, todayStr }) {
   );
 }
 
+// ===== GAS API URL =====
+const GAS_URL = "https://script.google.com/macros/s/AKfycbzKI4bqINFH-xuRDstkKyCYbu2nl5SpHXVb3ny-gRFq0We5YhB1E6x0WafXEhPkeirYzw/exec";
+
+const api = async (body) => {
+  const res = await fetch(GAS_URL, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+  return res.json();
+};
+
 // ===== LOGIN =====
-function LoginScreen({ onLogin, officials }) {
+function LoginScreen({ onLogin }) {
   const [mode, setMode] = useState("official");
   const [id, setId] = useState(""); const [pw, setPw] = useState("");
   const [err, setErr] = useState(""); const [ripple, setRipple] = useState(false);
-  const go = () => {
+  const [loading, setLoading] = useState(false);
+
+  const go = async () => {
     setRipple(true); setTimeout(()=>setRipple(false),600);
-    if (mode==="admin") {
-      if (id===adminCredentials.username && pw===adminCredentials.password) onLogin("admin",null);
-      else setErr("ユーザー名またはパスワードが正しくありません");
-    } else {
-      const f = officials.find(o=>o.id===id && o.password===pw);
-      if (f) onLogin("official",id); else setErr("登録番号またはパスワードが正しくありません");
+    setLoading(true); setErr("");
+    try {
+      const res = await api({ action:"login", type:mode, id, password:pw, username:id });
+      if (res.ok) onLogin(res.role, res.userId||null);
+      else setErr(res.message||"ログインに失敗しました");
+    } catch(e) {
+      setErr("通信エラーが発生しました。しばらくしてから再試行してください。");
     }
+    setLoading(false);
   };
   return (
     <div className="login-wrap">
@@ -198,14 +213,16 @@ function LoginScreen({ onLogin, officials }) {
         </div>
         <div className="field-group">
           <label>{mode==="admin"?"ユーザー名":"登録番号"}</label>
-          <input value={id} onChange={e=>{setId(e.target.value);setErr("");}} placeholder={mode==="admin"?"admin":"例：400356"} onKeyDown={e=>e.key==="Enter"&&go()}/>
+          <input value={id} onChange={e=>{setId(e.target.value);setErr("");}} placeholder={mode==="admin"?"admin":"例：400356"} onKeyDown={e=>e.key==="Enter"&&go()} disabled={loading}/>
         </div>
         <div className="field-group">
           <label>パスワード</label>
-          <input type="password" value={pw} onChange={e=>{setPw(e.target.value);setErr("");}} placeholder="••••••••" onKeyDown={e=>e.key==="Enter"&&go()}/>
+          <input type="password" value={pw} onChange={e=>{setPw(e.target.value);setErr("");}} placeholder="••••••••" onKeyDown={e=>e.key==="Enter"&&go()} disabled={loading}/>
         </div>
         {err && <div className="login-error">{err}</div>}
-        <button className={`login-btn ${ripple?"ripple":""}`} onClick={go}>ログイン</button>
+        <button className={`login-btn ${ripple?"ripple":""}`} onClick={go} disabled={loading}>
+          {loading ? "認証中..." : "ログイン"}
+        </button>
         <p className="login-hint">{mode==="official"?"※ 登録番号は事務局から発行されます":"※ 管理者専用ページです"}</p>
       </div>
     </div>
@@ -871,21 +888,32 @@ function Dashboard({ officials, meets, trainings, attendance, todayStr }) {
 // ===== ROOT =====
 function App() {
   const [auth, setAuth] = useState(null);
+  const [officials, setOfficials] = useState(initialOfficials);
+  const [meets, setMeets] = useState(initialMeets);
+  const [trainings, setTrainings] = useState(initialTrainings);
+  const [attendance, setAttendance] = useState({});
+  const [dbLoaded, setDbLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
-  const load = (key, fallback) => {
-    try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
-  };
-  const [officials, setOfficials] = useState(() => load("swm_officials", initialOfficials));
-  const [meets, setMeets] = useState(() => load("swm_meets", initialMeets));
-  const [trainings, setTrainings] = useState(() => load("swm_trainings", initialTrainings));
-  const [attendance, setAttendance] = useState(() => load("swm_attendance", {}));
-
-  // 変更があるたびに自動保存
+  // ログイン後に全データをGASから取得
   
-  useEffect(() => { try { localStorage.setItem("swm_officials", JSON.stringify(officials)); } catch {} }, [officials]);
-  useEffect(() => { try { localStorage.setItem("swm_meets", JSON.stringify(meets)); } catch {} }, [meets]);
-  useEffect(() => { try { localStorage.setItem("swm_trainings", JSON.stringify(trainings)); } catch {} }, [trainings]);
-  useEffect(() => { try { localStorage.setItem("swm_attendance", JSON.stringify(attendance)); } catch {} }, [attendance]);
+  useEffect(() => {
+    if (!auth || dbLoaded) return;
+    api({ action: "getAll" }).then(res => {
+      if (res.error) { setLoadError(true); return; }
+      if (res.officials?.length)  setOfficials(res.officials);
+      if (res.meets?.length)      setMeets(res.meets);
+      if (res.trainings?.length)  setTrainings(res.trainings);
+      if (res.attendance)         setAttendance(res.attendance);
+      setDbLoaded(true);
+    }).catch(() => setLoadError(true));
+  }, [auth]);
+
+  // データ変更時にGASへ自動保存（dbLoaded後のみ）
+  useEffect(() => { if (dbLoaded) api({ action:"saveOfficials", data:officials }); }, [officials]);
+  useEffect(() => { if (dbLoaded) api({ action:"saveMeets",     data:meets     }); }, [meets]);
+  useEffect(() => { if (dbLoaded) api({ action:"saveTrainings", data:trainings }); }, [trainings]);
+  useEffect(() => { if (dbLoaded) api({ action:"saveAttendance",data:attendance}); }, [attendance]);
 
   return (
     <>
@@ -1076,10 +1104,31 @@ function App() {
         .confirm-actions{display:flex;gap:10px;justify-content:center;}
         .btn-delete-confirm{background:linear-gradient(135deg,#dc2626,#f87171);border:none;color:white;padding:9px 22px;border-radius:8px;cursor:pointer;font-family:'Outfit',sans-serif;font-size:0.88rem;font-weight:600;transition:all 0.2s;}
         .btn-delete-confirm:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(248,113,113,0.35);}
+        .loading-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:#0a1628;}
+        .loading-spinner{width:44px;height:44px;border:3px solid rgba(56,189,248,0.15);border-top-color:#38bdf8;border-radius:50%;animation:spin 0.8s linear infinite;}
+        @keyframes spin{to{transform:rotate(360deg);}}
+        .loading-text{color:#7dd3fc;font-family:'Outfit',sans-serif;font-size:0.9rem;}
+        .loading-error{color:#f87171;font-size:0.85rem;text-align:center;line-height:1.6;}
       `}</style>
-      {!auth && <LoginScreen onLogin={(r,id)=>setAuth({role:r,userId:id})} officials={officials}/>}
-      {auth?.role==="official" && <OfficialView userId={auth.userId} officials={officials} setOfficials={setOfficials} meets={meets} trainings={trainings} attendance={attendance} setAttendance={setAttendance} onLogout={()=>setAuth(null)}/>}
-      {auth?.role==="admin" && <AdminView officials={officials} setOfficials={setOfficials} meets={meets} setMeets={setMeets} trainings={trainings} setTrainings={setTrainings} attendance={attendance} onLogout={()=>setAuth(null)}/>}
+      {!auth && <LoginScreen onLogin={(r,id)=>{setAuth({role:r,userId:id}); setDbLoaded(false);}}/>}
+      {auth && !dbLoaded && !loadError && (
+        <div className="loading-screen">
+          <div className="loading-spinner"/>
+          <div className="loading-text">スプレッドシートからデータを読み込んでいます...</div>
+        </div>
+      )}
+      {auth && !dbLoaded && loadError && (
+        <div className="loading-screen">
+          <div style={{fontSize:"2rem"}}>⚠️</div>
+          <div className="loading-error">
+            データの読み込みに失敗しました。<br/>
+            ネットワークを確認してページを再読み込みしてください。
+          </div>
+          <button className="btn-secondary" onClick={()=>{setAuth(null);setLoadError(false);}}>ログイン画面に戻る</button>
+        </div>
+      )}
+      {auth && dbLoaded && auth.role==="official" && <OfficialView userId={auth.userId} officials={officials} setOfficials={setOfficials} meets={meets} trainings={trainings} attendance={attendance} setAttendance={setAttendance} onLogout={()=>{setAuth(null);setDbLoaded(false);}}/>}
+      {auth && dbLoaded && auth.role==="admin" && <AdminView officials={officials} setOfficials={setOfficials} meets={meets} setMeets={setMeets} trainings={trainings} setTrainings={setTrainings} attendance={attendance} onLogout={()=>{setAuth(null);setDbLoaded(false);}}/>}
     </>
   );
 }
