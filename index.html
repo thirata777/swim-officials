@@ -434,7 +434,6 @@ function AdminView({ officials, setOfficials, meets, setMeets, trainings, setTra
   const [meetModal, setMeetModal] = useState(null);
   const [trainModal, setTrainModal] = useState(null);
   const [confirmDlg, setConfirmDlg] = useState(null);
-  const [csvModal, setCsvModal] = useState(null); // { title, content }
   const [attType, setAttType] = useState("meet");
   const [selectedId, setSelectedId] = useState(meets[0]?.id||"");
   const [search, setSearch] = useState("");
@@ -538,31 +537,35 @@ function AdminView({ officials, setOfficials, meets, setMeets, trainings, setTra
     </div>
   );
 
-  // CSV modal
-  const buildCSV = (headers, rows) => {
+  // CSV ダウンロード
+  const downloadCSV = (filename, headers, rows) => {
+    const bom = "\uFEFF";
     const escape = v => { const s = v==null?"":String(v); return s.includes(",")||s.includes('"')||s.includes("\n")?`"${s.replace(/"/g,'""')}"`:s; };
-    return [headers,...rows].map(r=>r.map(escape).join(",")).join("\n");
+    const lines = [headers,...rows].map(r=>r.map(escape).join(",")).join("\r\n");
+    const blob = new Blob([bom+lines],{type:"text/csv;charset=utf-8;"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href=url; a.download=filename; a.click(); URL.revokeObjectURL(url);
   };
   const exportOfficials = () => {
     const h = ["登録番号","氏名","読み仮名","資格","有効期限","生年月日","年齢","メールアドレス","携帯電話"];
     const r = sortedOff.map(o=>[o.id,o.name,o.kana,o.qualification,o.expiry||"",o.birthdate||"",calcAge(o.birthdate),o.email||"",o.phone||""]);
-    setCsvModal({ title:"役員一覧", content: buildCSV(h,r) });
+    downloadCSV("役員一覧.csv",h,r);
   };
   const exportMeets = () => {
     const h = ["ID","大会名","開催日（開始）","開催日（終了）","会場","水路","主催","受付締切","定員"];
     const r = sortedMeets.map(m=>[m.id,m.name,m.dates[0]||"",m.dates[m.dates.length-1]||"",m.venue,m.lane||"",m.organizer||"",m.deadline||"",m.capacity]);
-    setCsvModal({ title:"大会一覧", content: buildCSV(h,r) });
+    downloadCSV("大会一覧.csv",h,r);
   };
   const exportTrainings = () => {
     const h = ["ID","研修会名","種別","対象資格","開催日（開始）","開催日（終了）","会場","主催","受付締切","定員","備考"];
     const r = sortedTrainings.map(t=>[t.id,t.name,t.category||"",(t.targetQual||[]).join("・"),t.dates[0]||"",t.dates[t.dates.length-1]||"",t.venue,t.organizer||"",t.deadline||"",t.capacity,t.notes||""]);
-    setCsvModal({ title:"研修会一覧", content: buildCSV(h,r) });
+    downloadCSV("研修会一覧.csv",h,r);
   };
   const exportAttendance = () => {
     if(!selItem) return;
     const h = ["登録番号","氏名","資格",...selItem.dates];
     const r = officials.map(o=>[o.id,o.name,o.qualification,...selItem.dates.map(d=>getAtt(o.id,selItem.id,d))]);
-    setCsvModal({ title:`出欠 ${selItem.name}`, content: buildCSV(h,r) });
+    downloadCSV(`出欠_${selItem.name}.csv`,h,r);
   };
 
   return (
@@ -838,36 +841,6 @@ function AdminView({ officials, setOfficials, meets, setMeets, trainings, setTra
               ) : (
                 <button className="btn-primary" onClick={()=>setConfirmDlg(null)}>OK</button>
               )}
-            </div>
-          </div>
-        </div>
-      )}
-      {csvModal && (
-        <div className="modal-overlay" onClick={()=>setCsvModal(null)}>
-          <div className="csv-modal" onClick={e=>e.stopPropagation()}>
-            <div className="csv-modal-header">
-              <div>
-                <div className="csv-modal-title">📋 {csvModal.title}</div>
-                <div className="csv-modal-hint">テキストをコピーしてExcelに貼り付けてください</div>
-              </div>
-              <div style={{display:"flex",gap:"8px",alignItems:"center"}}>
-                <button className="btn-csv" style={{fontSize:"0.82rem",padding:"7px 14px"}} onClick={()=>{
-                  navigator.clipboard.writeText(csvModal.content).then(()=>{
-                    setCsvModal(p=>({...p,copied:true}));
-                    setTimeout(()=>setCsvModal(p=>p?{...p,copied:false}:null),2000);
-                  }).catch(()=>{
-                    const ta=document.getElementById("csv-ta");
-                    if(ta){ta.select();document.execCommand("copy");setCsvModal(p=>({...p,copied:true}));setTimeout(()=>setCsvModal(p=>p?{...p,copied:false}:null),2000);}
-                  });
-                }}>{csvModal.copied?"✅ コピー済み！":"📋 全文コピー"}</button>
-                <button className="csv-close-btn" onClick={()=>setCsvModal(null)}>✕</button>
-              </div>
-            </div>
-            <textarea id="csv-ta" className="csv-textarea" value={csvModal.content} readOnly
-              onClick={e=>e.target.select()} onFocus={e=>e.target.select()}
-            />
-            <div className="csv-modal-footer">
-              💡 テキストエリアをクリックで全選択 → Ctrl+C（Mac: ⌘+C）でコピー
             </div>
           </div>
         </div>
