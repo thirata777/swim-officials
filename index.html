@@ -2,11 +2,12 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>福岡県水泳連盟 競技役員管理システム</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <style>body{margin:0;}</style>
 </head>
 <body>
   <div id="root"></div>
@@ -234,19 +235,23 @@ function OfficialView({ userId, officials, setOfficials, meets, trainings, atten
   const [tab, setTab] = useState("mypage");
   const [editing, setEditing] = useState(false);
   const [ef, setEf] = useState({ name:"", kana:"", birthdate:"", email:"", phone:"", pw:"", npw:"", npw2:"" });
+  const [alertMsg, setAlertMsg] = useState("");
   const me = officials.find(o=>o.id===userId);
   const todayStr = new Date().toISOString().slice(0,10);
 
+  const showAlert = (msg) => { setAlertMsg(msg); setTimeout(()=>setAlertMsg(""),3000); };
+
   const startEdit = () => { setEf({ name:me.name||"", kana:me.kana||"", birthdate:me.birthdate||"", email:me.email||"", phone:me.phone||"", pw:"", npw:"", npw2:"" }); setEditing(true); };
   const saveEdit = () => {
-    if (!ef.name.trim()) { alert("氏名を入力してください"); return; }
+    if (!ef.name.trim()) { showAlert("氏名を入力してください"); return; }
     if (ef.npw) {
-      if (!ef.pw) { alert("現在のパスワードを入力してください"); return; }
-      if (ef.pw !== me.password) { alert("現在のパスワードが正しくありません"); return; }
-      if (ef.npw !== ef.npw2) { alert("新しいパスワードが一致しません"); return; }
+      if (!ef.pw) { showAlert("現在のパスワードを入力してください"); return; }
+      if (ef.pw !== me.password) { showAlert("現在のパスワードが正しくありません"); return; }
+      if (ef.npw !== ef.npw2) { showAlert("新しいパスワードが一致しません"); return; }
     }
     setOfficials(p=>p.map(o=>o.id!==userId?o:{...o,name:ef.name,kana:ef.kana,birthdate:ef.birthdate,email:ef.email,phone:ef.phone,...(ef.npw?{password:ef.npw}:{})}));
     setEditing(false);
+    showAlert("保存しました ✓");
   };
 
   const upM = meets.filter(m=>m.dates[0]>=todayStr).sort((a,b)=>a.dates[0].localeCompare(b.dates[0]));
@@ -257,128 +262,158 @@ function OfficialView({ userId, officials, setOfficials, meets, trainings, atten
   };
   const pmeets = upM.filter(m=>m.deadline>=todayStr && m.dates.some(d=>!attendance[`${userId}_${m.id}_${d}`]));
   const ptrains = upT.filter(t=>t.deadline>=todayStr && t.dates.some(d=>!attendance[`${userId}_${t.id}_${d}`]));
+  const pendingCount = pmeets.length + ptrains.length;
+
+  const tabs = [
+    { key:"mypage",    label:"マイページ", icon:"👤" },
+    { key:"meets",     label:"大会",       icon:"🏊", badge: pmeets.length },
+    { key:"trainings", label:"研修会",     icon:"📋", badge: ptrains.length },
+  ];
 
   return (
-    <div className="main-wrap">
-      <aside className="sidebar">
-        <div className="sidebar-logo">
-          <svg viewBox="0 0 40 40" width="32" height="32">
+    <div className="off-wrap">
+      {/* トースト通知 */}
+      {alertMsg && <div className="off-toast">{alertMsg}</div>}
+
+      {/* ヘッダー */}
+      <header className="off-header">
+        <div className="off-header-left">
+          <svg viewBox="0 0 40 40" width="28" height="28">
             <ellipse cx="20" cy="20" rx="18" ry="18" fill="none" stroke="#38bdf8" strokeWidth="2"/>
             <path d="M6 26 Q13 18 20 26 Q27 34 34 26" fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round"/>
             <path d="M6 18 Q13 10 20 18 Q27 26 34 18" fill="none" stroke="#7dd3fc" strokeWidth="1.5" strokeLinecap="round"/>
             <circle cx="20" cy="13" r="3.5" fill="#38bdf8" opacity="0.9"/>
           </svg>
-          <span>役員ポータル</span>
+          <div>
+            <div className="off-header-title">役員ポータル</div>
+            <div className="off-header-name">{me?.name}</div>
+          </div>
         </div>
-        <nav className="sidebar-nav">
-          <div className={`nav-item ${tab==="mypage"?"active":""}`} onClick={()=>{setTab("mypage");setEditing(false);}}>マイページ</div>
-          <div className={`nav-item ${tab==="meets"?"active":""}`} onClick={()=>setTab("meets")}>
-            大会・出欠 {pmeets.length>0&&<span className="nav-badge">{pmeets.length}</span>}
-          </div>
-          <div className={`nav-item ${tab==="trainings"?"active":""}`} onClick={()=>setTab("trainings")}>
-            研修会・出欠 {ptrains.length>0&&<span className="nav-badge">{ptrains.length}</span>}
-          </div>
-        </nav>
-        <button className="logout-btn" onClick={onLogout}>ログアウト</button>
-      </aside>
-      <main className="content">
+        <button className="off-logout-btn" onClick={onLogout}>ログアウト</button>
+      </header>
 
+      {/* メインコンテンツ */}
+      <main className="off-main">
+
+        {/* ===== マイページ ===== */}
         {tab==="mypage" && me && (
-          <>
-            <div className="page-header">
-              <h2>マイページ</h2>
-              {!editing && <button className="btn-primary" onClick={startEdit}>✏️ 編集</button>}
-            </div>
+          <div className="off-section">
             {!editing ? (
-              <div className="official-profile-card">
-                <div className="profile-avatar">{me.name.charAt(0)}</div>
-                <div className="profile-info">
-                  <h3>{me.name}</h3>
-                  <p className="profile-kana">{me.kana}</p>
-                  <div className="profile-section-label">基本情報（自分で編集可）</div>
-                  <div className="profile-row"><span className="profile-label">登録番号</span><span className="profile-val mono">{me.id}</span></div>
-                  <div className="profile-row"><span className="profile-label">資格</span><QualBadge q={me.qualification}/></div>
-                  <div className="profile-row"><span className="profile-label">有効期限</span><span className="profile-val">{formatDate(me.expiry)}</span></div>
-                  <div className="profile-row"><span className="profile-label">生年月日</span><span className="profile-val">{formatDate(me.birthdate)}</span></div>
-                  <div className="profile-row"><span className="profile-label">年齢</span><span className="profile-val">{calcAge(me.birthdate)}歳</span></div>
-                  <div className="profile-divider"/>
-                  <div className="profile-section-label">連絡先情報（自分で編集可）</div>
-                  <div className="profile-row"><span className="profile-label">メール</span><span className="profile-val">{me.email||<span className="unset">未登録</span>}</span></div>
-                  <div className="profile-row"><span className="profile-label">携帯電話</span><span className="profile-val">{me.phone||<span className="unset">未登録</span>}</span></div>
-                  <div className="profile-divider"/>
-                  <div className="profile-section-label">変更不可（管理者のみ）</div>
-                  <div className="profile-row"><span className="profile-label">資格・期限</span><span className="profile-val" style={{fontSize:"0.8rem",color:"#64748b"}}>管理者にお問い合わせください</span></div>
-                </div>
-              </div>
-            ) : (
-              <div className="edit-card">
-                <div className="edit-card-title">プロフィール編集</div>
-                <div className="edit-note">※ 資格・有効期限・登録番号は管理者にお問い合わせください</div>
-                <div className="edit-section-label">基本情報</div>
-                <div className="form-grid">
-                  <div className="field-group"><label>氏名</label><input value={ef.name} onChange={e=>setEf(p=>({...p,name:e.target.value}))} placeholder="例：山田 太郎"/></div>
-                  <div className="field-group"><label>読み仮名</label><input value={ef.kana} onChange={e=>setEf(p=>({...p,kana:e.target.value}))} placeholder="例：やまだ たろう"/></div>
-                  <div className="field-group"><label>生年月日</label><input type="date" value={ef.birthdate} onChange={e=>setEf(p=>({...p,birthdate:e.target.value}))}/></div>
-                </div>
-                <div className="edit-section-label" style={{marginTop:"18px"}}>連絡先情報</div>
-                <div className="form-grid">
-                  <div className="field-group field-full"><label>メールアドレス</label><input type="email" value={ef.email} onChange={e=>setEf(p=>({...p,email:e.target.value}))} placeholder="例：yamada@example.com"/></div>
-                  <div className="field-group field-full"><label>携帯電話</label><input type="tel" value={ef.phone} onChange={e=>setEf(p=>({...p,phone:e.target.value}))} placeholder="例：090-1234-5678"/></div>
-                </div>
-                <div className="edit-section-label" style={{marginTop:"18px"}}>パスワード変更（変更しない場合は空欄）</div>
-                <div className="form-grid">
-                  <div className="field-group field-full"><label>現在のパスワード</label><input type="password" value={ef.pw} onChange={e=>setEf(p=>({...p,pw:e.target.value}))} placeholder="現在のパスワード" autoComplete="current-password"/></div>
-                  <div className="field-group"><label>新しいパスワード</label><input type="password" value={ef.npw} onChange={e=>setEf(p=>({...p,npw:e.target.value}))} placeholder="新しいパスワード" autoComplete="new-password"/></div>
-                  <div className="field-group"><label>確認（再入力）</label><input type="password" value={ef.npw2} onChange={e=>setEf(p=>({...p,npw2:e.target.value}))} placeholder="もう一度入力" autoComplete="new-password"/></div>
-                </div>
-                <div className="modal-actions" style={{marginTop:"20px"}}>
-                  <button className="btn-secondary" onClick={()=>setEditing(false)}>キャンセル</button>
-                  <button className="btn-primary" onClick={saveEdit}>保存する</button>
-                </div>
-              </div>
-            )}
-            {!editing && (pmeets.length+ptrains.length)>0 && (
               <>
-                <div className="section-title" style={{marginTop:"28px"}}>未回答の出欠（{pmeets.length+ptrains.length}件）</div>
-                <div className="meet-att-grid">
-                  {pmeets.map(m=><AttCard key={m.id} item={m} userId={userId} attendance={attendance} setAttendance={setAttendance} todayStr={todayStr}/>)}
-                  {ptrains.map(t=><AttCard key={t.id} item={t} userId={userId} attendance={attendance} setAttendance={setAttendance} todayStr={todayStr}/>)}
+                {/* プロフィールカード */}
+                <div className="off-profile-card">
+                  <div className="off-avatar">{me.name.charAt(0)}</div>
+                  <div className="off-profile-body">
+                    <div className="off-profile-name">{me.name}</div>
+                    <div className="off-profile-kana">{me.kana}</div>
+                    <div style={{marginTop:"6px"}}><QualBadge q={me.qualification}/></div>
+                  </div>
+                  <button className="off-edit-btn" onClick={startEdit}>✏️ 編集</button>
                 </div>
+
+                {/* 情報グリッド */}
+                <div className="off-info-grid">
+                  <div className="off-info-item"><div className="off-info-label">登録番号</div><div className="off-info-val mono">{me.id}</div></div>
+                  <div className="off-info-item"><div className="off-info-label">有効期限</div><div className="off-info-val">{formatDate(me.expiry)||"—"}</div></div>
+                  <div className="off-info-item"><div className="off-info-label">生年月日</div><div className="off-info-val">{formatDate(me.birthdate)||"—"}</div></div>
+                  <div className="off-info-item"><div className="off-info-label">年齢</div><div className="off-info-val">{calcAge(me.birthdate)}歳</div></div>
+                  <div className="off-info-item off-info-full"><div className="off-info-label">メール</div><div className="off-info-val">{me.email||<span className="unset">未登録</span>}</div></div>
+                  <div className="off-info-item off-info-full"><div className="off-info-label">携帯電話</div><div className="off-info-val">{me.phone||<span className="unset">未登録</span>}</div></div>
+                </div>
+
+                {/* 未回答の出欠 */}
+                {pendingCount > 0 && (
+                  <>
+                    <div className="off-section-title">⚠️ 未回答の出欠（{pendingCount}件）</div>
+                    {pmeets.map(m=><AttCard key={m.id} item={m} userId={userId} attendance={attendance} setAttendance={setAttendance} todayStr={todayStr}/>)}
+                    {ptrains.map(t=><AttCard key={t.id} item={t} userId={userId} attendance={attendance} setAttendance={setAttendance} todayStr={todayStr}/>)}
+                  </>
+                )}
+                {pendingCount === 0 && (
+                  <div className="off-empty-notice">✅ 未回答の出欠はありません</div>
+                )}
               </>
+            ) : (
+              /* 編集フォーム */
+              <div className="off-edit-form">
+                <div className="off-edit-header">
+                  <button className="off-back-btn" onClick={()=>setEditing(false)}>← 戻る</button>
+                  <div className="off-edit-title">プロフィール編集</div>
+                </div>
+                <div className="off-edit-note">資格・有効期限・登録番号は管理者にお問い合わせください</div>
+
+                <div className="off-form-section">基本情報</div>
+                <div className="off-field"><label>氏名</label><input value={ef.name} onChange={e=>setEf(p=>({...p,name:e.target.value}))} placeholder="例：山田 太郎"/></div>
+                <div className="off-field"><label>読み仮名</label><input value={ef.kana} onChange={e=>setEf(p=>({...p,kana:e.target.value}))} placeholder="例：やまだ たろう"/></div>
+                <div className="off-field"><label>生年月日</label><input type="date" value={ef.birthdate} onChange={e=>setEf(p=>({...p,birthdate:e.target.value}))}/></div>
+
+                <div className="off-form-section">連絡先</div>
+                <div className="off-field"><label>メールアドレス</label><input type="email" value={ef.email} onChange={e=>setEf(p=>({...p,email:e.target.value}))} placeholder="例：yamada@example.com"/></div>
+                <div className="off-field"><label>携帯電話</label><input type="tel" value={ef.phone} onChange={e=>setEf(p=>({...p,phone:e.target.value}))} placeholder="例：090-1234-5678"/></div>
+
+                <div className="off-form-section">パスワード変更（変更しない場合は空欄）</div>
+                <div className="off-field"><label>現在のパスワード</label><input type="password" value={ef.pw} onChange={e=>setEf(p=>({...p,pw:e.target.value}))} autoComplete="current-password"/></div>
+                <div className="off-field"><label>新しいパスワード</label><input type="password" value={ef.npw} onChange={e=>setEf(p=>({...p,npw:e.target.value}))} autoComplete="new-password"/></div>
+                <div className="off-field"><label>新しいパスワード（確認）</label><input type="password" value={ef.npw2} onChange={e=>setEf(p=>({...p,npw2:e.target.value}))} autoComplete="new-password"/></div>
+
+                <button className="off-save-btn" onClick={saveEdit}>保存する</button>
+              </div>
             )}
-          </>
+          </div>
         )}
 
+        {/* ===== 大会一覧 ===== */}
         {tab==="meets" && (
-          <>
-            <div className="page-header"><h2>大会一覧・出欠入力</h2><span className="header-sub">{upM.length}件</span></div>
-            <div className="att-summary-row">
-              {[["参加","att-sum-yes"],["不参加","att-sum-no"],["一部回答","att-sum-partial"],["未回答","att-sum-pending"]].map(([s,c])=>(
-                <span key={s} className={`att-sum ${c}`}>{s} {upM.filter(m=>getSummary(m)===s).length}件</span>
+          <div className="off-section">
+            <div className="off-section-header">
+              <div className="off-section-title-lg">大会・出欠入力</div>
+              <span className="off-count-badge">{upM.length}件</span>
+            </div>
+            <div className="off-summary-row">
+              {[["参加","sum-yes"],["不参加","sum-no"],["一部","sum-partial"],["未回答","sum-pending"]].map(([s,c])=>(
+                <div key={s} className={`off-sum-item ${c}`}>
+                  <div className="off-sum-num">{upM.filter(m=>getSummary(m)===s).length}</div>
+                  <div className="off-sum-label">{s}</div>
+                </div>
               ))}
             </div>
-            <div className="meet-att-grid">
-              {upM.map(m=><AttCard key={m.id} item={m} userId={userId} attendance={attendance} setAttendance={setAttendance} todayStr={todayStr}/>)}
-              {upM.length===0&&<p style={{color:"#64748b",fontSize:"0.88rem"}}>開催予定の大会はありません</p>}
-            </div>
-          </>
+            {upM.map(m=><AttCard key={m.id} item={m} userId={userId} attendance={attendance} setAttendance={setAttendance} todayStr={todayStr}/>)}
+            {upM.length===0 && <div className="off-empty">開催予定の大会はありません</div>}
+          </div>
         )}
 
+        {/* ===== 研修会一覧 ===== */}
         {tab==="trainings" && (
-          <>
-            <div className="page-header"><h2>研修会一覧・出欠入力</h2><span className="header-sub">{upT.length}件</span></div>
-            <div className="att-summary-row">
-              {[["参加","att-sum-yes"],["不参加","att-sum-no"],["未回答","att-sum-pending"]].map(([s,c])=>(
-                <span key={s} className={`att-sum ${c}`}>{s} {upT.filter(t=>getSummary(t)===s).length}件</span>
+          <div className="off-section">
+            <div className="off-section-header">
+              <div className="off-section-title-lg">研修会・出欠入力</div>
+              <span className="off-count-badge">{upT.length}件</span>
+            </div>
+            <div className="off-summary-row">
+              {[["参加","sum-yes"],["不参加","sum-no"],["未回答","sum-pending"]].map(([s,c])=>(
+                <div key={s} className={`off-sum-item ${c}`}>
+                  <div className="off-sum-num">{upT.filter(t=>getSummary(t)===s).length}</div>
+                  <div className="off-sum-label">{s}</div>
+                </div>
               ))}
             </div>
-            <div className="meet-att-grid">
-              {upT.map(t=><AttCard key={t.id} item={t} userId={userId} attendance={attendance} setAttendance={setAttendance} todayStr={todayStr}/>)}
-              {upT.length===0&&<p style={{color:"#64748b",fontSize:"0.88rem"}}>予定されている研修会はありません</p>}
-            </div>
-          </>
+            {upT.map(t=><AttCard key={t.id} item={t} userId={userId} attendance={attendance} setAttendance={setAttendance} todayStr={todayStr}/>)}
+            {upT.length===0 && <div className="off-empty">予定されている研修会はありません</div>}
+          </div>
         )}
+
       </main>
+
+      {/* ボトムナビゲーション */}
+      <nav className="off-bottom-nav">
+        {tabs.map(t=>(
+          <button key={t.key} className={`off-nav-btn ${tab===t.key?"active":""}`} onClick={()=>{setTab(t.key);setEditing(false);}}>
+            <span className="off-nav-icon">{t.icon}</span>
+            <span className="off-nav-label">{t.label}</span>
+            {t.badge>0 && <span className="off-nav-badge">{t.badge}</span>}
+          </button>
+        ))}
+      </nav>
     </div>
   );
 }
@@ -980,6 +1015,67 @@ function App() {
         .att-type-btn{padding:8px 24px;border:none;background:transparent;color:#94a3b8;font-family:'Noto Sans JP',sans-serif;font-size:0.88rem;border-radius:7px;cursor:pointer;transition:all 0.2s;}
         .att-type-btn.active{background:rgba(56,189,248,0.18);color:#38bdf8;font-weight:500;}
         .meet-att-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;}
+
+        /* ===== スマホ役員UI ===== */
+        .off-wrap{display:flex;flex-direction:column;min-height:100vh;background:#0a1628;padding-bottom:72px;}
+        .off-header{position:sticky;top:0;z-index:100;background:rgba(10,22,40,0.97);border-bottom:1px solid rgba(56,189,248,0.12);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(10px);}
+        .off-header-left{display:flex;align-items:center;gap:10px;}
+        .off-header-title{font-family:'Outfit',sans-serif;font-size:0.78rem;color:#7dd3fc;line-height:1;}
+        .off-header-name{font-family:'Outfit',sans-serif;font-size:1rem;font-weight:700;color:#e2eaf5;line-height:1.3;}
+        .off-logout-btn{background:rgba(100,116,139,0.15);border:1px solid rgba(100,116,139,0.25);color:#94a3b8;padding:7px 14px;border-radius:8px;cursor:pointer;font-size:0.8rem;font-family:'Noto Sans JP',sans-serif;}
+        .off-main{flex:1;padding:16px;}
+        .off-section{display:flex;flex-direction:column;gap:12px;}
+        .off-section-header{display:flex;align-items:center;gap:10px;margin-bottom:4px;}
+        .off-section-title-lg{font-family:'Outfit',sans-serif;font-size:1.1rem;font-weight:700;color:#e2eaf5;}
+        .off-section-title{font-family:'Outfit',sans-serif;font-size:0.95rem;font-weight:700;color:#fbbf24;}
+        .off-count-badge{background:rgba(56,189,248,0.12);color:#38bdf8;border:1px solid rgba(56,189,248,0.25);padding:2px 10px;border-radius:20px;font-size:0.78rem;font-family:'Outfit',sans-serif;}
+
+        .off-profile-card{background:linear-gradient(135deg,rgba(14,165,233,0.1),rgba(56,189,248,0.05));border:1px solid rgba(56,189,248,0.2);border-radius:18px;padding:20px;display:flex;align-items:flex-start;gap:14px;position:relative;}
+        .off-avatar{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#0ea5e9,#38bdf8);display:flex;align-items:center;justify-content:center;font-family:'Outfit',sans-serif;font-size:1.4rem;font-weight:700;color:white;flex-shrink:0;}
+        .off-profile-body{flex:1;}
+        .off-profile-name{font-family:'Outfit',sans-serif;font-size:1.15rem;font-weight:700;color:#e2eaf5;}
+        .off-profile-kana{font-size:0.78rem;color:#64748b;margin-top:1px;}
+        .off-edit-btn{position:absolute;top:16px;right:16px;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);color:#38bdf8;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:0.8rem;font-family:'Noto Sans JP',sans-serif;white-space:nowrap;}
+
+        .off-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+        .off-info-full{grid-column:1/-1;}
+        .off-info-item{background:rgba(15,30,55,0.6);border:1px solid rgba(56,189,248,0.08);border-radius:12px;padding:12px 14px;}
+        .off-info-label{font-size:0.7rem;color:#64748b;margin-bottom:4px;letter-spacing:0.05em;}
+        .off-info-val{font-size:0.9rem;color:#e2eaf5;font-weight:500;word-break:break-all;}
+
+        .off-empty-notice{background:rgba(52,211,153,0.07);border:1px solid rgba(52,211,153,0.2);border-radius:12px;padding:16px;text-align:center;color:#34d399;font-size:0.88rem;}
+        .off-empty{text-align:center;color:#475569;font-size:0.88rem;padding:32px 0;}
+
+        .off-summary-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:4px;}
+        .off-sum-item{background:rgba(15,30,55,0.7);border-radius:12px;padding:10px 6px;text-align:center;border:1px solid rgba(56,189,248,0.08);}
+        .off-sum-item.sum-yes{border-color:rgba(52,211,153,0.25);background:rgba(52,211,153,0.06);}
+        .off-sum-item.sum-no{border-color:rgba(248,113,113,0.25);background:rgba(248,113,113,0.06);}
+        .off-sum-item.sum-partial{border-color:rgba(251,191,36,0.25);background:rgba(251,191,36,0.06);}
+        .off-sum-item.sum-pending{border-color:rgba(100,116,139,0.25);}
+        .off-sum-num{font-family:'Outfit',sans-serif;font-size:1.3rem;font-weight:700;color:#e2eaf5;line-height:1;}
+        .off-sum-label{font-size:0.68rem;color:#64748b;margin-top:3px;}
+
+        .off-edit-form{display:flex;flex-direction:column;gap:0;}
+        .off-edit-header{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+        .off-back-btn{background:rgba(100,116,139,0.15);border:1px solid rgba(100,116,139,0.2);color:#94a3b8;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:0.85rem;font-family:'Noto Sans JP',sans-serif;}
+        .off-edit-title{font-family:'Outfit',sans-serif;font-size:1.05rem;font-weight:700;color:#e2eaf5;}
+        .off-edit-note{font-size:0.75rem;color:#64748b;padding:10px 14px;background:rgba(255,255,255,0.03);border-radius:8px;margin-bottom:16px;line-height:1.6;}
+        .off-form-section{font-size:0.72rem;color:#38bdf8;text-transform:uppercase;letter-spacing:0.1em;font-weight:600;margin:16px 0 8px;}
+        .off-field{margin-bottom:12px;}
+        .off-field label{display:block;font-size:0.75rem;color:#7dd3fc;margin-bottom:5px;}
+        .off-field input{width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(56,189,248,0.2);border-radius:10px;padding:12px 14px;color:#e2eaf5;font-family:'Noto Sans JP',sans-serif;font-size:1rem;outline:none;}
+        .off-field input:focus{border-color:#38bdf8;background:rgba(56,189,248,0.07);}
+        .off-save-btn{width:100%;padding:15px;background:linear-gradient(135deg,#0ea5e9,#38bdf8);border:none;border-radius:12px;color:white;font-family:'Outfit',sans-serif;font-size:1rem;font-weight:700;cursor:pointer;margin-top:12px;}
+
+        .off-bottom-nav{position:fixed;bottom:0;left:0;right:0;background:rgba(10,22,40,0.97);border-top:1px solid rgba(56,189,248,0.12);display:flex;backdrop-filter:blur(10px);z-index:100;padding-bottom:env(safe-area-inset-bottom);}
+        .off-nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 0;background:transparent;border:none;cursor:pointer;position:relative;transition:all 0.2s;}
+        .off-nav-btn.active .off-nav-icon{filter:drop-shadow(0 0 6px #38bdf8);}
+        .off-nav-btn.active .off-nav-label{color:#38bdf8;}
+        .off-nav-icon{font-size:1.3rem;line-height:1;}
+        .off-nav-label{font-size:0.68rem;color:#64748b;font-family:'Noto Sans JP',sans-serif;transition:color 0.2s;}
+        .off-nav-badge{position:absolute;top:6px;right:calc(50% - 18px);background:#f87171;color:white;border-radius:10px;min-width:18px;height:18px;font-size:0.65rem;font-weight:700;display:flex;align-items:center;justify-content:center;font-family:'Outfit',sans-serif;}
+
+        .off-toast{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:rgba(52,211,153,0.15);border:1px solid rgba(52,211,153,0.35);color:#34d399;padding:10px 20px;border-radius:10px;font-size:0.85rem;z-index:200;animation:fadeup 0.3s ease;backdrop-filter:blur(8px);white-space:nowrap;}
         .meet-att-card{background:rgba(15,30,55,0.7);border:1px solid rgba(56,189,248,0.12);border-radius:14px;padding:18px;}
         .meet-att-card.att-card-yes{border-color:rgba(52,211,153,0.4);background:rgba(52,211,153,0.04);}
         .meet-att-card.att-card-no{border-color:rgba(248,113,113,0.3);background:rgba(248,113,113,0.04);}
@@ -1132,7 +1228,6 @@ function App() {
     </>
   );
 }
-
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
   </script>
