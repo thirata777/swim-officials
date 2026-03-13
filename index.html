@@ -568,6 +568,78 @@ function AdminView({ officials, setOfficials, meets, setMeets, trainings, setTra
     downloadCSV(`出欠_${selItem.name}.csv`,h,r);
   };
 
+  // ===== CSV インポート =====
+  const parseCSV = (text) => {
+    const lines = text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n").filter(l=>l.trim());
+    return lines.map(line => {
+      const cells = []; let cur = ""; let inQ = false;
+      for (let i=0;i<line.length;i++) {
+        const c = line[i];
+        if (inQ) { if (c==='"' && line[i+1]==='"') { cur+='"'; i++; } else if (c==='"') { inQ=false; } else { cur+=c; } }
+        else { if (c==='"') { inQ=true; } else if (c===',') { cells.push(cur); cur=""; } else { cur+=c; } }
+      }
+      cells.push(cur);
+      return cells;
+    });
+  };
+
+  const HEADERS = {
+    officials: ["登録番号","氏名","読み仮名","資格","有効期限","生年月日","年齢","メールアドレス","携帯電話"],
+    meets:     ["ID","大会名","開催日（開始）","開催日（終了）","会場","水路","主催","受付締切","定員"],
+    trainings: ["ID","研修会名","種別","対象資格","開催日（開始）","開催日（終了）","会場","主催","受付締切","定員","備考"],
+  };
+
+  const handleImport = (type, file) => {
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith(".csv")) {
+      setConfirmDlg({ message:"CSVファイル（.csv）を選択してください。\n\n選択されたファイル：" + file.name, onOk:null }); return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target.result;
+        const rows = parseCSV(text);
+        if (rows.length < 2) { setConfirmDlg({ message:"データが空です。ヘッダー行と1行以上のデータが必要です。", onOk:null }); return; }
+        const headers = rows[0];
+        const expected = HEADERS[type];
+        const missing = expected.filter(h => !headers.includes(h));
+        if (missing.length > 0) {
+          setConfirmDlg({ message:`ヘッダー行が正しくありません。\n\n不足している列：\n・${missing.join("\n・")}\n\n※CSV出力したファイルをそのまま使用してください。`, onOk:null }); return;
+        }
+        const data = rows.slice(1).filter(r=>r.some(c=>c.trim())).map(row => {
+          const obj = {};
+          headers.forEach((h,i) => { obj[h] = (row[i]||"").trim(); });
+          return obj;
+        });
+        if (type==="officials") {
+          const imported = data.map(o=>({ id:o["登録番号"], name:o["氏名"], kana:o["読み仮名"], qualification:o["資格"]||"なし", expiry:o["有効期限"]||"", birthdate:o["生年月日"]||"", password:o["パスワード"]||"", email:o["メールアドレス"]||"", phone:o["携帯電話"]||"" }));
+          setConfirmDlg({ icon:"📥", okLabel:"インポートする", okStyle:{background:"linear-gradient(135deg,#0ea5e9,#38bdf8)"}, message:`役員データ ${imported.length}件をインポートします。\n現在のデータは上書きされます。よろしいですか？`, onOk:()=>setOfficials(imported) });
+        } else if (type==="meets") {
+          const imported = data.map(m=>({ id:m["ID"], name:m["大会名"], dates:[m["開催日（開始）"],m["開催日（終了）"]].filter(d=>d&&m["開催日（開始）"]!==m["開催日（終了）"]||[m["開催日（開始）"]]).filter(Boolean), venue:m["会場"]||"", lane:m["水路"]||"25m", organizer:m["主催"]||"", deadline:m["受付締切"]||"", capacity:Number(m["定員"])||0 }));
+          // 1日のみの場合dates重複修正
+          const fixed = data.map(m=>{ const s=m["開催日（開始）"],e=m["開催日（終了）"]; return { id:m["ID"], name:m["大会名"], dates:s&&e&&s!==e?[s,e]:s?[s]:[], venue:m["会場"]||"", lane:m["水路"]||"25m", organizer:m["主催"]||"", deadline:m["受付締切"]||"", capacity:Number(m["定員"])||0 }; });
+          setConfirmDlg({ icon:"📥", okLabel:"インポートする", okStyle:{background:"linear-gradient(135deg,#0ea5e9,#38bdf8)"}, message:`大会データ ${fixed.length}件をインポートします。\n現在のデータは上書きされます。よろしいですか？`, onOk:()=>setMeets(fixed) });
+        } else if (type==="trainings") {
+          const fixed = data.map(t=>{ const s=t["開催日（開始）"],e=t["開催日（終了）"]; return { id:t["ID"], name:t["研修会名"], dates:s&&e&&s!==e?[s,e]:s?[s]:[], venue:t["会場"]||"", organizer:t["主催"]||"", deadline:t["受付締切"]||"", capacity:Number(t["定員"])||0, category:t["種別"]||"任意", targetQual:t["対象資格"]?t["対象資格"].split("・").filter(Boolean):[], notes:t["備考"]||"" }; });
+          setConfirmDlg({ icon:"📥", okLabel:"インポートする", okStyle:{background:"linear-gradient(135deg,#0ea5e9,#38bdf8)"}, message:`研修会データ ${fixed.length}件をインポートします。\n現在のデータは上書きされます。よろしいですか？`, onOk:()=>setTrainings(fixed) });
+        }
+      } catch(err) {
+        setConfirmDlg({ message:"ファイルの読み込みに失敗しました。\nCSVファイルが破損しているか、文字コードが正しくない可能性があります。", onOk:null });
+      }
+    };
+    reader.readAsText(file, "UTF-8");
+  };
+
+  const ImportBtn = ({ type }) => {
+    const ref = React.useRef();
+    return (
+      <>
+        <input type="file" accept=".csv" ref={ref} style={{display:"none"}} onChange={e=>{ handleImport(type, e.target.files[0]); e.target.value=""; }}/>
+        <button className="btn-import" onClick={()=>ref.current.click()}>⬆ CSV取込</button>
+      </>
+    );
+  };
+
   return (
     <div className="main-wrap">
       <aside className="sidebar">
@@ -591,7 +663,7 @@ function AdminView({ officials, setOfficials, meets, setMeets, trainings, setTra
 
         {tab==="officials" && (
           <>
-            <div className="page-header"><h2>役員管理</h2><div style={{display:"flex",gap:"8px"}}><button className="btn-csv" onClick={exportOfficials}>⬇ CSV出力</button><button className="btn-primary" onClick={()=>{setOffF({...emptyOff});setOffModal("new");}}>＋ 新規登録</button></div></div>
+            <div className="page-header"><h2>役員管理</h2><div style={{display:"flex",gap:"8px"}}><ImportBtn type="officials"/><button className="btn-csv" onClick={exportOfficials}>⬇ CSV出力</button><button className="btn-primary" onClick={()=>{setOffF({...emptyOff});setOffModal("new");}}>＋ 新規登録</button></div></div>
             <div className="search-bar"><input placeholder="氏名・読み仮名・登録番号で検索" value={search} onChange={e=>setSearch(e.target.value)}/></div>
             <div className="table-wrap">
               <table className="data-table">
@@ -626,7 +698,7 @@ function AdminView({ officials, setOfficials, meets, setMeets, trainings, setTra
 
         {tab==="meets" && (
           <>
-            <div className="page-header"><h2>大会管理</h2><div style={{display:"flex",gap:"8px"}}><button className="btn-csv" onClick={exportMeets}>⬇ CSV出力</button><button className="btn-primary" onClick={()=>{setMeetF({...emptyEv,id:"M"+String(meets.length+1).padStart(3,"0")});setMeetModal("new");}}>＋ 新規登録</button></div></div>
+            <div className="page-header"><h2>大会管理</h2><div style={{display:"flex",gap:"8px"}}><ImportBtn type="meets"/><button className="btn-csv" onClick={exportMeets}>⬇ CSV出力</button><button className="btn-primary" onClick={()=>{setMeetF({...emptyEv,id:"M"+String(meets.length+1).padStart(3,"0")});setMeetModal("new");}}>＋ 新規登録</button></div></div>
             <div className="table-wrap">
               <table className="data-table">
                 <thead><tr>
@@ -656,7 +728,7 @@ function AdminView({ officials, setOfficials, meets, setMeets, trainings, setTra
 
         {tab==="trainings" && (
           <>
-            <div className="page-header"><h2>研修会管理</h2><div style={{display:"flex",gap:"8px"}}><button className="btn-csv" onClick={exportTrainings}>⬇ CSV出力</button><button className="btn-primary" onClick={()=>{setTrainF({...emptyTrain,id:"T"+String(trainings.length+1).padStart(3,"0")});setTrainModal("new");}}>＋ 新規登録</button></div></div>
+            <div className="page-header"><h2>研修会管理</h2><div style={{display:"flex",gap:"8px"}}><ImportBtn type="trainings"/><button className="btn-csv" onClick={exportTrainings}>⬇ CSV出力</button><button className="btn-primary" onClick={()=>{setTrainF({...emptyTrain,id:"T"+String(trainings.length+1).padStart(3,"0")});setTrainModal("new");}}>＋ 新規登録</button></div></div>
             <div className="table-wrap">
               <table className="data-table">
                 <thead><tr>
@@ -830,13 +902,13 @@ function AdminView({ officials, setOfficials, meets, setMeets, trainings, setTra
       {confirmDlg && (
         <div className="modal-overlay" onClick={()=>setConfirmDlg(null)}>
           <div className="confirm-dialog" onClick={e=>e.stopPropagation()}>
-            <div className="confirm-icon">{confirmDlg.onOk ? "🗑️" : "⚠️"}</div>
-            <div className="confirm-message">{confirmDlg.message}</div>
+            <div className="confirm-icon">{confirmDlg.icon || (confirmDlg.onOk ? "🗑️" : "⚠️")}</div>
+            <div className="confirm-message" style={{whiteSpace:"pre-wrap"}}>{confirmDlg.message}</div>
             <div className="confirm-actions">
               {confirmDlg.onOk ? (
                 <>
                   <button className="btn-secondary" onClick={()=>setConfirmDlg(null)}>キャンセル</button>
-                  <button className="btn-delete-confirm" onClick={()=>{ confirmDlg.onOk(); setConfirmDlg(null); }}>削除する</button>
+                  <button className="btn-delete-confirm" style={confirmDlg.okStyle||{}} onClick={()=>{ confirmDlg.onOk(); setConfirmDlg(null); }}>{confirmDlg.okLabel||"削除する"}</button>
                 </>
               ) : (
                 <button className="btn-primary" onClick={()=>setConfirmDlg(null)}>OK</button>
@@ -1066,6 +1138,8 @@ function App() {
         .off-nav-label{font-size:0.68rem;color:#64748b;font-family:'Noto Sans JP',sans-serif;transition:color 0.2s;}
         .off-nav-badge{position:absolute;top:6px;right:calc(50% - 18px);background:#f87171;color:white;border-radius:10px;min-width:18px;height:18px;font-size:0.65rem;font-weight:700;display:flex;align-items:center;justify-content:center;font-family:'Outfit',sans-serif;}
 
+        .btn-import{background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.3);color:#34d399;padding:7px 14px;border-radius:8px;cursor:pointer;font-family:'Outfit',sans-serif;font-size:0.82rem;font-weight:600;transition:all 0.2s;white-space:nowrap;}
+        .btn-import:hover{background:rgba(52,211,153,0.2);border-color:rgba(52,211,153,0.5);}
         .off-sum-item.off-sum-active{outline:2px solid #38bdf8;outline-offset:2px;}
         .off-filter-notice{font-size:0.78rem;color:#38bdf8;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);border-radius:8px;padding:8px 12px;}
         .off-toast{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:rgba(52,211,153,0.15);border:1px solid rgba(52,211,153,0.35);color:#34d399;padding:10px 20px;border-radius:10px;font-size:0.85rem;z-index:200;animation:fadeup 0.3s ease;backdrop-filter:blur(8px);white-space:nowrap;}
