@@ -214,7 +214,7 @@ function LoginScreen({ onLogin }) {
         </div>
         <div className="field-group">
           <label>{mode==="admin"?"ユーザー名":"登録番号"}</label>
-          <input value={id} onChange={e=>{setId(e.target.value);setErr("");}} placeholder={mode==="admin"?"admin":"例：400356"} onKeyDown={e=>e.key==="Enter"&&go()} disabled={loading}/>
+          <input value={id} onChange={e=>{setId(e.target.value);setErr("");}} placeholder={mode==="admin"?"admin":"例：409999"} onKeyDown={e=>e.key==="Enter"&&go()} disabled={loading}/>
         </div>
         <div className="field-group">
           <label>パスワード</label>
@@ -224,7 +224,7 @@ function LoginScreen({ onLogin }) {
         <button className={`login-btn ${ripple?"ripple":""}`} onClick={go} disabled={loading}>
           {loading ? "認証中..." : "ログイン"}
         </button>
-        <p className="login-hint">{mode==="official"?"※ 登録番号は事務局から発行されます":"※ 管理者専用ページです"}</p>
+        <p className="login-hint">{mode==="official"?"※ 競技役員管理システムに登録完了の方のみ利用可能です":"※ 管理者専用ページです"}</p>
       </div>
     </div>
   );
@@ -944,7 +944,16 @@ function App() {
     }).catch(() => setLoadError(true));
   }, [auth]);
 
-  // データ変更時にGASへ自動保存（dbLoaded後のみ）
+  // 役員ログイン中はスマホ拡大禁止
+  useEffect(() => {
+    const vp = document.querySelector('meta[name="viewport"]');
+    if (!vp) return;
+    if (auth?.role === "official") {
+      vp.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover";
+    } else {
+      vp.content = "width=device-width, initial-scale=1.0, viewport-fit=cover";
+    }
+  }, [auth]);
   useEffect(() => { if (dbLoaded) api({ action:"saveOfficials", data:officials }); }, [officials]);
   useEffect(() => { if (dbLoaded) api({ action:"saveMeets",     data:meets     }); }, [meets]);
   useEffect(() => { if (dbLoaded) api({ action:"saveTrainings", data:trainings }); }, [trainings]);
