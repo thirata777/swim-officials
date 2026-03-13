@@ -207,7 +207,7 @@ function LoginScreen({ onLogin }) {
           </svg>
         </div>
         <h1 className="login-title">競技役員管理システム</h1>
-        <p className="login-subtitle">福岡県水泳連盟</p>
+        <p className="login-subtitle">※本システムは試作版です。</p>
         <div className="tab-row">
           <button className={`tab-btn ${mode==="official"?"active":""}`} onClick={()=>{setMode("official");setErr("");}}>競技役員</button>
           <button className={`tab-btn ${mode==="admin"?"active":""}`} onClick={()=>{setMode("admin");setErr("");}}>管理者</button>
@@ -224,7 +224,7 @@ function LoginScreen({ onLogin }) {
         <button className={`login-btn ${ripple?"ripple":""}`} onClick={go} disabled={loading}>
           {loading ? "認証中..." : "ログイン"}
         </button>
-        <p className="login-hint">{mode==="official"?"※ 競技役員管理システムに登録完了の方のみ利用可能":"※ 管理者専用"}</p>
+        <p className="login-hint">{mode==="official"?"※ 本システムは登録済みの競技役員のみ利用できます。":"※ 管理者専用"}</p>
       </div>
     </div>
   );
