@@ -214,17 +214,17 @@ function LoginScreen({ onLogin }) {
         </div>
         <div className="field-group">
           <label>{mode==="admin"?"ユーザー名":"登録番号"}</label>
-          <input value={id} onChange={e=>{setId(e.target.value);setErr("");}} placeholder={mode==="admin"?"admin":"例：409999"} onKeyDown={e=>e.key==="Enter"&&go()} disabled={loading}/>
+          <input value={id} onChange={e=>{setId(e.target.value);setErr("");}} placeholder={mode==="official"?"例：409999":""} onKeyDown={e=>e.key==="Enter"&&go()} disabled={loading}/>
         </div>
         <div className="field-group">
           <label>パスワード</label>
-          <input type="password" value={pw} onChange={e=>{setPw(e.target.value);setErr("");}} placeholder="••••••••" onKeyDown={e=>e.key==="Enter"&&go()} disabled={loading}/>
+          <input type="password" value={pw} onChange={e=>{setPw(e.target.value);setErr("");}} placeholder="" onKeyDown={e=>e.key==="Enter"&&go()} disabled={loading}/>
         </div>
         {err && <div className="login-error">{err}</div>}
         <button className={`login-btn ${ripple?"ripple":""}`} onClick={go} disabled={loading}>
           {loading ? "認証中..." : "ログイン"}
         </button>
-        <p className="login-hint">{mode==="official"?"※ 競技役員管理システムに登録完了の方のみ利用可能です":"※ 管理者専用ページです"}</p>
+        <p className="login-hint">{mode==="official"?"※ 競技役員管理システムに登録完了の方のみ利用可能":"※ 管理者専用"}</p>
       </div>
     </div>
   );
@@ -254,12 +254,17 @@ function OfficialView({ userId, officials, setOfficials, meets, trainings, atten
     showAlert("保存しました ✓");
   };
 
+  const [meetFilter, setMeetFilter] = useState(null);
+  const [trainFilter, setTrainFilter] = useState(null);
+
   const upM = meets.filter(m=>m.dates[0]>=todayStr).sort((a,b)=>a.dates[0].localeCompare(b.dates[0]));
   const upT = trainings.filter(t=>t.dates[0]>=todayStr).sort((a,b)=>a.dates[0].localeCompare(b.dates[0]));
   const getSummary = (item) => {
     const ss = item.dates.map(d=>attendance[`${userId}_${item.id}_${d}`]||"未回答");
     if(ss.every(s=>s==="参加"))return"参加"; if(ss.every(s=>s==="不参加"))return"不参加"; if(ss.every(s=>s==="未回答"))return"未回答"; return"一部回答";
   };
+  const filteredM = meetFilter ? upM.filter(m=>getSummary(m)===meetFilter) : upM;
+  const filteredT = trainFilter ? upT.filter(t=>getSummary(t)===trainFilter) : upT;
   const pmeets = upM.filter(m=>m.deadline>=todayStr && m.dates.some(d=>!attendance[`${userId}_${m.id}_${d}`]));
   const ptrains = upT.filter(t=>t.deadline>=todayStr && t.dates.some(d=>!attendance[`${userId}_${t.id}_${d}`]));
   const pendingCount = pmeets.length + ptrains.length;
@@ -367,18 +372,20 @@ function OfficialView({ userId, officials, setOfficials, meets, trainings, atten
           <div className="off-section">
             <div className="off-section-header">
               <div className="off-section-title-lg">大会・出欠入力</div>
-              <span className="off-count-badge">{upM.length}件</span>
+              <span className="off-count-badge">{filteredM.length}/{upM.length}件</span>
             </div>
             <div className="off-summary-row">
-              {[["参加","sum-yes"],["不参加","sum-no"],["一部","sum-partial"],["未回答","sum-pending"]].map(([s,c])=>(
-                <div key={s} className={`off-sum-item ${c}`}>
+              {[["参加","sum-yes"],["不参加","sum-no"],["一部回答","sum-partial"],["未回答","sum-pending"]].map(([s,c])=>(
+                <div key={s} className={`off-sum-item ${c} ${meetFilter===s?"off-sum-active":""}`}
+                  onClick={()=>setMeetFilter(p=>p===s?null:s)} style={{cursor:"pointer"}}>
                   <div className="off-sum-num">{upM.filter(m=>getSummary(m)===s).length}</div>
-                  <div className="off-sum-label">{s}</div>
+                  <div className="off-sum-label">{s==="一部回答"?"一部":s}</div>
                 </div>
               ))}
             </div>
-            {upM.map(m=><AttCard key={m.id} item={m} userId={userId} attendance={attendance} setAttendance={setAttendance} todayStr={todayStr}/>)}
-            {upM.length===0 && <div className="off-empty">開催予定の大会はありません</div>}
+            {meetFilter && <div className="off-filter-notice">「{meetFilter}」で絞り込み中 <span onClick={()=>setMeetFilter(null)} style={{cursor:"pointer",textDecoration:"underline",marginLeft:"6px"}}>解除</span></div>}
+            {filteredM.map(m=><AttCard key={m.id} item={m} userId={userId} attendance={attendance} setAttendance={setAttendance} todayStr={todayStr}/>)}
+            {filteredM.length===0 && <div className="off-empty">{meetFilter?`「${meetFilter}」の大会はありません`:"開催予定の大会はありません"}</div>}
           </div>
         )}
 
@@ -387,18 +394,20 @@ function OfficialView({ userId, officials, setOfficials, meets, trainings, atten
           <div className="off-section">
             <div className="off-section-header">
               <div className="off-section-title-lg">研修会・出欠入力</div>
-              <span className="off-count-badge">{upT.length}件</span>
+              <span className="off-count-badge">{filteredT.length}/{upT.length}件</span>
             </div>
-            <div className="off-summary-row">
+            <div className="off-summary-row" style={{gridTemplateColumns:"repeat(3,1fr)"}}>
               {[["参加","sum-yes"],["不参加","sum-no"],["未回答","sum-pending"]].map(([s,c])=>(
-                <div key={s} className={`off-sum-item ${c}`}>
+                <div key={s} className={`off-sum-item ${c} ${trainFilter===s?"off-sum-active":""}`}
+                  onClick={()=>setTrainFilter(p=>p===s?null:s)} style={{cursor:"pointer"}}>
                   <div className="off-sum-num">{upT.filter(t=>getSummary(t)===s).length}</div>
                   <div className="off-sum-label">{s}</div>
                 </div>
               ))}
             </div>
-            {upT.map(t=><AttCard key={t.id} item={t} userId={userId} attendance={attendance} setAttendance={setAttendance} todayStr={todayStr}/>)}
-            {upT.length===0 && <div className="off-empty">予定されている研修会はありません</div>}
+            {trainFilter && <div className="off-filter-notice">「{trainFilter}」で絞り込み中 <span onClick={()=>setTrainFilter(null)} style={{cursor:"pointer",textDecoration:"underline",marginLeft:"6px"}}>解除</span></div>}
+            {filteredT.map(t=><AttCard key={t.id} item={t} userId={userId} attendance={attendance} setAttendance={setAttendance} todayStr={todayStr}/>)}
+            {filteredT.length===0 && <div className="off-empty">{trainFilter?`「${trainFilter}」の研修会はありません`:"予定されている研修会はありません"}</div>}
           </div>
         )}
 
@@ -1084,6 +1093,8 @@ function App() {
         .off-nav-label{font-size:0.68rem;color:#64748b;font-family:'Noto Sans JP',sans-serif;transition:color 0.2s;}
         .off-nav-badge{position:absolute;top:6px;right:calc(50% - 18px);background:#f87171;color:white;border-radius:10px;min-width:18px;height:18px;font-size:0.65rem;font-weight:700;display:flex;align-items:center;justify-content:center;font-family:'Outfit',sans-serif;}
 
+        .off-sum-item.off-sum-active{outline:2px solid #38bdf8;outline-offset:2px;}
+        .off-filter-notice{font-size:0.78rem;color:#38bdf8;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);border-radius:8px;padding:8px 12px;}
         .off-toast{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:rgba(52,211,153,0.15);border:1px solid rgba(52,211,153,0.35);color:#34d399;padding:10px 20px;border-radius:10px;font-size:0.85rem;z-index:200;animation:fadeup 0.3s ease;backdrop-filter:blur(8px);white-space:nowrap;}
         .meet-att-card{background:rgba(15,30,55,0.7);border:1px solid rgba(56,189,248,0.12);border-radius:14px;padding:18px;}
         .meet-att-card.att-card-yes{border-color:rgba(52,211,153,0.4);background:rgba(52,211,153,0.04);}
@@ -1219,7 +1230,7 @@ function App() {
       {auth && !dbLoaded && !loadError && (
         <div className="loading-screen">
           <div className="loading-spinner"/>
-          <div className="loading-text">スプレッドシートからデータを読み込んでいます...</div>
+          <div className="loading-text">データを読み込んでいます...</div>
         </div>
       )}
       {auth && !dbLoaded && loadError && (
