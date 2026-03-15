@@ -180,19 +180,22 @@ function LoginScreen({ onLogin }) {
   const [mode, setMode] = useState("official");
   const [id, setId] = useState(""); const [pw, setPw] = useState("");
   const [err, setErr] = useState(""); const [ripple, setRipple] = useState(false);
-  const [loading, setLoading] = useState(false);
 
-  const go = async () => {
+  const go = () => {
     setRipple(true); setTimeout(()=>setRipple(false),600);
-    setLoading(true); setErr("");
-    try {
-      const res = await api({ action:"login", type:mode, id, password:pw, username:id });
-      if (res.ok) onLogin(res.role, res.userId||null);
-      else setErr(res.message||"ログインに失敗しました");
-    } catch(e) {
-      setErr("通信エラーが発生しました。しばらくしてから再試行してください。");
+    setErr("");
+    if (mode === "admin") {
+      if (id === adminCredentials.username && pw === adminCredentials.password) {
+        onLogin("admin", null);
+      } else {
+        setErr("ユーザー名またはパスワードが正しくありません");
+      }
+    } else {
+      const found = initialOfficials.find(o => o.id === id);
+      if (!found) { setErr("登録番号が見つかりません"); return; }
+      if (found.password && found.password !== pw) { setErr("パスワードが正しくありません"); return; }
+      onLogin("official", found.id);
     }
-    setLoading(false);
   };
   return (
     <div className="login-wrap">
@@ -214,15 +217,15 @@ function LoginScreen({ onLogin }) {
         </div>
         <div className="field-group">
           <label>{mode==="admin"?"ユーザー名":"登録番号"}</label>
-          <input value={id} onChange={e=>{setId(e.target.value);setErr("");}} placeholder={mode==="official"?"例：409999":""} onKeyDown={e=>e.key==="Enter"&&go()} disabled={loading}/>
+          <input value={id} onChange={e=>{setId(e.target.value);setErr("");}} placeholder={mode==="official"?"例：409999":""} onKeyDown={e=>e.key==="Enter"&&go()}/>
         </div>
         <div className="field-group">
           <label>パスワード</label>
-          <input type="password" value={pw} onChange={e=>{setPw(e.target.value);setErr("");}} placeholder="" onKeyDown={e=>e.key==="Enter"&&go()} disabled={loading}/>
+          <input type="password" value={pw} onChange={e=>{setPw(e.target.value);setErr("");}} placeholder="" onKeyDown={e=>e.key==="Enter"&&go()}/>
         </div>
         {err && <div className="login-error">{err}</div>}
-        <button className={`login-btn ${ripple?"ripple":""}`} onClick={go} disabled={loading}>
-          {loading ? "認証中..." : "ログイン"}
+        <button className={`login-btn ${ripple?"ripple":""}`} onClick={go}>
+          ログイン
         </button>
         <p className="login-hint">{mode==="official"?"※ 本システムは登録済みの競技役員のみ利用できます。":"※ 管理者専用"}</p>
       </div>
@@ -481,11 +484,11 @@ function AdminView({ officials, setOfficials, meets, setMeets, trainings, setTra
     return v * offSort.dir;
   });
   const sortedMeets = [...meets].sort((a,b)=>{
-    const v = meetSort.key==="date" ? a.dates[0].localeCompare(b.dates[0]) : meetSort.key==="name" ? a.name.localeCompare(b.name,"ja") : meetSort.key==="venue" ? a.venue.localeCompare(b.venue,"ja") : 0;
+    const v = meetSort.key==="id" ? a.id.localeCompare(b.id) : meetSort.key==="date" ? a.dates[0].localeCompare(b.dates[0]) : meetSort.key==="name" ? a.name.localeCompare(b.name,"ja") : meetSort.key==="venue" ? a.venue.localeCompare(b.venue,"ja") : meetSort.key==="deadline" ? (a.deadline||"").localeCompare(b.deadline||"") : 0;
     return v * meetSort.dir;
   });
   const sortedTrainings = [...trainings].sort((a,b)=>{
-    const v = trainSort.key==="date" ? a.dates[0].localeCompare(b.dates[0]) : trainSort.key==="name" ? a.name.localeCompare(b.name,"ja") : 0;
+    const v = trainSort.key==="id" ? a.id.localeCompare(b.id) : trainSort.key==="date" ? a.dates[0].localeCompare(b.dates[0]) : trainSort.key==="name" ? a.name.localeCompare(b.name,"ja") : 0;
     return v * trainSort.dir;
   });
 
@@ -538,6 +541,15 @@ function AdminView({ officials, setOfficials, meets, setMeets, trainings, setTra
   );
 
   // CSV ダウンロード
+  const toYMD = (d) => {
+    if (!d) return "";
+    const dt = new Date(d);
+    if (isNaN(dt)) return String(d);
+    const y = dt.getFullYear();
+    const m = String(dt.getMonth()+1).padStart(2,"0");
+    const day = String(dt.getDate()).padStart(2,"0");
+    return `${y}/${m}/${day}`;
+  };
   const downloadCSV = (filename, headers, rows) => {
     const bom = "\uFEFF";
     const escape = v => { const s = v==null?"":String(v); return s.includes(",")||s.includes('"')||s.includes("\n")?`"${s.replace(/"/g,'""')}"`:s; };
@@ -548,22 +560,22 @@ function AdminView({ officials, setOfficials, meets, setMeets, trainings, setTra
   };
   const exportOfficials = () => {
     const h = ["登録番号","氏名","読み仮名","資格","有効期限","生年月日","年齢","メールアドレス","携帯電話"];
-    const r = sortedOff.map(o=>[o.id,o.name,o.kana,o.qualification,o.expiry||"",o.birthdate||"",calcAge(o.birthdate),o.email||"",o.phone||""]);
+    const r = sortedOff.map(o=>[o.id,o.name,o.kana,o.qualification,toYMD(o.expiry),toYMD(o.birthdate),calcAge(o.birthdate),o.email||"",o.phone||""]);
     downloadCSV("役員一覧.csv",h,r);
   };
   const exportMeets = () => {
     const h = ["ID","大会名","開催日（開始）","開催日（終了）","会場","水路","主催","受付締切","定員"];
-    const r = sortedMeets.map(m=>[m.id,m.name,m.dates[0]||"",m.dates[m.dates.length-1]||"",m.venue,m.lane||"",m.organizer||"",m.deadline||"",m.capacity]);
+    const r = sortedMeets.map(m=>[m.id,m.name,toYMD(m.dates[0]),toYMD(m.dates[m.dates.length-1]),m.venue,m.lane||"",m.organizer||"",toYMD(m.deadline),m.capacity]);
     downloadCSV("大会一覧.csv",h,r);
   };
   const exportTrainings = () => {
     const h = ["ID","研修会名","種別","対象資格","開催日（開始）","開催日（終了）","会場","主催","受付締切","定員","備考"];
-    const r = sortedTrainings.map(t=>[t.id,t.name,t.category||"",(t.targetQual||[]).join("・"),t.dates[0]||"",t.dates[t.dates.length-1]||"",t.venue,t.organizer||"",t.deadline||"",t.capacity,t.notes||""]);
+    const r = sortedTrainings.map(t=>[t.id,t.name,t.category||"",(t.targetQual||[]).join("・"),toYMD(t.dates[0]),toYMD(t.dates[t.dates.length-1]),t.venue,t.organizer||"",toYMD(t.deadline),t.capacity,t.notes||""]);
     downloadCSV("研修会一覧.csv",h,r);
   };
   const exportAttendance = () => {
     if(!selItem) return;
-    const h = ["登録番号","氏名","資格",...selItem.dates];
+    const h = ["登録番号","氏名","資格",...selItem.dates.map(toYMD)];
     const r = officials.map(o=>[o.id,o.name,o.qualification,...selItem.dates.map(d=>getAtt(o.id,selItem.id,d))]);
     downloadCSV(`出欠_${selItem.name}.csv`,h,r);
   };
@@ -702,7 +714,7 @@ function AdminView({ officials, setOfficials, meets, setMeets, trainings, setTra
             <div className="table-wrap">
               <table className="data-table">
                 <thead><tr>
-                  <th>ID</th>
+                  <SortTh label="ID" sortKey="id" sortState={meetSort} setSortState={setMeetSort}/>
                   <SortTh label="大会名" sortKey="name" sortState={meetSort} setSortState={setMeetSort}/>
                   <SortTh label="開催日" sortKey="date" sortState={meetSort} setSortState={setMeetSort}/>
                   <SortTh label="会場" sortKey="venue" sortState={meetSort} setSortState={setMeetSort}/>
@@ -732,7 +744,7 @@ function AdminView({ officials, setOfficials, meets, setMeets, trainings, setTra
             <div className="table-wrap">
               <table className="data-table">
                 <thead><tr>
-                  <th>ID</th>
+                  <SortTh label="ID" sortKey="id" sortState={trainSort} setSortState={setTrainSort}/>
                   <SortTh label="研修会名" sortKey="name" sortState={trainSort} setSortState={setTrainSort}/>
                   <th>種別</th><th>対象資格</th>
                   <SortTh label="開催日" sortKey="date" sortState={trainSort} setSortState={setTrainSort}/>
@@ -984,18 +996,10 @@ function App() {
   const [dbLoaded, setDbLoaded] = useState(false);
   const [loadError, setLoadError] = useState(false);
 
-  // ログイン後に全データをGASから取得
-  
+  // ローカルモード：ログイン後すぐにデータ準備完了
   useEffect(() => {
     if (!auth || dbLoaded) return;
-    api({ action: "getAll" }).then(res => {
-      if (res.error) { setLoadError(true); return; }
-      if (res.officials?.length)  setOfficials(res.officials);
-      if (res.meets?.length)      setMeets(res.meets);
-      if (res.trainings?.length)  setTrainings(res.trainings);
-      if (res.attendance)         setAttendance(res.attendance);
-      setDbLoaded(true);
-    }).catch(() => setLoadError(true));
+    setDbLoaded(true);
   }, [auth]);
 
   // 役員ログイン中はスマホ拡大禁止
